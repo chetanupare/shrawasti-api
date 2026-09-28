@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase
       .from("user_subscriptions")
-      .select("*, subscription_plans(*)")
+      .select("*, subscription_plans(*), subscription_entitlements(*)")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -23,11 +23,12 @@ export async function GET(request: Request) {
     const subscriptions = (data || []).map((sub: any) => ({
       id: sub.id,
       userId: sub.user_id,
+      vehicleId: sub.vehicle_id || null,
       planId: sub.plan_id,
       status: sub.status,
-      startDate: sub.start_date,
-      endDate: sub.end_date,
-      washesRemaining: sub.washes_remaining,
+      startDate: sub.start_date || sub.current_period_start,
+      endDate: sub.end_date || sub.current_period_end,
+      washesRemaining: sub.washes_remaining ?? (sub.subscription_entitlements?.[0] ? sub.subscription_entitlements[0].included_quantity - sub.subscription_entitlements[0].used_quantity : 0),
       plan: sub.subscription_plans
         ? {
             id: sub.subscription_plans.id,
@@ -38,6 +39,13 @@ export async function GET(request: Request) {
             prices: sub.subscription_plans.prices,
           }
         : null,
+      entitlements: (sub.subscription_entitlements || []).map((e: any) => ({
+        id: e.id,
+        entitlementType: e.entitlement_type,
+        includedQuantity: e.included_quantity,
+        reservedQuantity: e.reserved_quantity,
+        usedQuantity: e.used_quantity,
+      })),
       createdAt: sub.created_at,
       updatedAt: sub.updated_at,
     }));
@@ -51,19 +59,29 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, planId, startDate, endDate, washesRemaining } = body;
+    const { userId, vehicleId, planId, startDate, endDate, washesRemaining, snapshotPrice, snapshotVehicleType, snapshotPlanName } = body;
 
     if (!userId || !planId) {
       return NextResponse.json({ error: "userId and planId are required" }, { status: 400 });
     }
 
+    const now = new Date();
+    const end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
     const newSubscription = {
       user_id: userId,
+      vehicle_id: vehicleId || null,
       plan_id: planId,
       status: "active",
-      start_date: startDate || new Date().toISOString(),
-      end_date: endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      start_date: startDate || now.toISOString(),
+      end_date: endDate || end.toISOString(),
+      current_period_start: startDate || now.toISOString(),
+      current_period_end: endDate || end.toISOString(),
+      billing_period: "monthly",
       washes_remaining: washesRemaining ?? 4,
+      snapshot_price: snapshotPrice || 0,
+      snapshot_vehicle_type: snapshotVehicleType || "4W",
+      snapshot_plan_name: snapshotPlanName || "Care Pass",
     };
 
     const { data, error } = await supabase
@@ -81,10 +99,11 @@ export async function POST(request: Request) {
         subscription: {
           id: data.id,
           userId: data.user_id,
+          vehicleId: data.vehicle_id,
           planId: data.plan_id,
           status: data.status,
-          startDate: data.start_date,
-          endDate: data.end_date,
+          startDate: data.start_date || data.current_period_start,
+          endDate: data.end_date || data.current_period_end,
           washesRemaining: data.washes_remaining,
           plan: data.subscription_plans,
           createdAt: data.created_at,
