@@ -1,42 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const DEFAULT_PROVIDERS = [
-  {
-    id: "prov_101",
-    name: "Ramesh Kumar",
-    phone: "+91 9876543210",
-    email: "ramesh.k@shrawasti.com",
-    rating: 4.9,
-    totalJobs: 42,
-    isOnline: true,
-    status: "active",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "prov_102",
-    name: "Suresh Sharma",
-    phone: "+91 9812345678",
-    email: "suresh.s@shrawasti.com",
-    rating: 4.8,
-    totalJobs: 28,
-    isOnline: true,
-    status: "active",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "prov_103",
-    name: "Amit Singh",
-    phone: "+91 9765432109",
-    email: "amit.singh@shrawasti.com",
-    rating: 5.0,
-    totalJobs: 15,
-    isOnline: false,
-    status: "active",
-    createdAt: new Date().toISOString(),
-  },
-];
-
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -51,7 +15,7 @@ export async function GET(request: Request) {
     const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ providers: DEFAULT_PROVIDERS });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     const providers = (data || []).map((p: any) => ({
@@ -69,7 +33,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ providers });
   } catch (err: any) {
-    return NextResponse.json({ providers: DEFAULT_PROVIDERS });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 

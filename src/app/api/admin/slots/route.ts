@@ -1,20 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const DEFAULT_SLOTS = [
-  { id: "slot_1", slotTime: "09:00 AM - 11:00 AM", maxCapacity: 10, isActive: true },
-  { id: "slot_2", slotTime: "11:00 AM - 01:00 PM", maxCapacity: 10, isActive: true },
-  { id: "slot_3", slotTime: "01:00 PM - 03:00 PM", maxCapacity: 10, isActive: true },
-  { id: "slot_4", slotTime: "03:00 PM - 05:00 PM", maxCapacity: 10, isActive: true },
-  { id: "slot_5", slotTime: "05:00 PM - 07:00 PM", maxCapacity: 10, isActive: true },
-];
-
 export async function GET() {
   try {
     const { data, error } = await supabaseAdmin.from("booking_slots").select("*").order("id", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ slots: DEFAULT_SLOTS });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     const slots = (data || []).map((s: any) => ({
@@ -26,7 +18,7 @@ export async function GET() {
 
     return NextResponse.json({ slots });
   } catch (err: any) {
-    return NextResponse.json({ slots: DEFAULT_SLOTS });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 

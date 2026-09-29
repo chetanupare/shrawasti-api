@@ -54,8 +54,15 @@ export default function AdminPortalPage() {
     data: { name: "", description: "", category: "package", basePrice: "", durationMinutes: 45, popular: false, isActive: true },
   });
 
+  const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [isSeeding, setIsSeeding] = useState<boolean>(false);
+
   useEffect(() => {
     fetchData();
+    const interval = setInterval(() => {
+      fetchData();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchData = async () => {
@@ -69,10 +76,30 @@ export default function AdminPortalPage() {
       fetch("/api/admin/slots").then((res) => res.json()).then((data) => setSlotsList(data.slots || [])).catch(() => {});
       fetch("/api/admin/users?limit=30").then((res) => res.json()).then((data) => setUsers(data.users || [])).catch(() => {});
       fetch("/api/admin/services").then((res) => res.json()).then((data) => setServicesList(data.services || [])).catch(() => {});
+      setLastUpdated(new Date().toLocaleTimeString());
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSeedDatabase = async () => {
+    if (!confirm("Populate Supabase database with initial master records (services, slots, vehicle catalog, providers)?")) return;
+    setIsSeeding(true);
+    try {
+      const res = await fetch("/api/admin/seed", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        alert("Database seeded successfully!");
+        fetchData();
+      } else {
+        alert(`Seeding failed: ${data.error}`);
+      }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSeeding(false);
     }
   };
 
@@ -298,9 +325,20 @@ export default function AdminPortalPage() {
           <div style={styles.statusPill}>
             <span style={{ ...styles.pulseDot, backgroundColor: health?.status === "healthy" ? "#10B981" : "#F59E0B" }} />
             <span style={styles.statusText}>
-              System: <strong style={{ color: "#F8FAFC" }}>{health?.status === "healthy" ? "Healthy (v1.0)" : "Connecting..."}</strong>
+              System: <strong style={{ color: "#F8FAFC" }}>{health?.status === "healthy" ? "Healthy" : "Connecting..."}</strong>
             </span>
           </div>
+
+          <div style={styles.statusPill}>
+            <span style={{ ...styles.pulseDot, backgroundColor: "#3B82F6" }} />
+            <span style={styles.statusText}>
+              Live Sync: <strong style={{ color: "#F8FAFC" }}>{lastUpdated || "Active (5s)"}</strong>
+            </span>
+          </div>
+
+          <button style={{ ...styles.refreshBtn, background: "rgba(16, 185, 129, 0.2)", borderColor: "#10B981", color: "#10B981" }} onClick={handleSeedDatabase} disabled={isSeeding}>
+            {isSeeding ? "Seeding DB..." : "🌱 Seed Master DB"}
+          </button>
 
           <button style={styles.refreshBtn} onClick={fetchData}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

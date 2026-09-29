@@ -25,10 +25,10 @@ export async function GET() {
       .eq("is_active", true);
 
     if (error) {
-      return NextResponse.json({ coupons: DEFAULT_COUPONS });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ coupons: data && data.length > 0 ? data : DEFAULT_COUPONS });
+    return NextResponse.json({ coupons: data || [] });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
