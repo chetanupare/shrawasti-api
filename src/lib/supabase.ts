@@ -8,10 +8,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn("Supabase credentials missing. Ensure SUPABASE_URL and SUPABASE_ANON_KEY are set.");
 }
 
+// Fallback placeholders for build-time safety to prevent module evaluation crashes during 'next build'
+const validUrl = supabaseUrl || "https://placeholder.supabase.co";
+const validAnonKey = supabaseAnonKey || "placeholder";
+
 // Client for standard operations (RLS enforced if user token provided)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(validUrl, validAnonKey);
 
 // Admin client for backend operations that bypass RLS when service role key is configured
 export const supabaseAdmin = supabaseServiceRoleKey
-  ? createClient(supabaseUrl, supabaseServiceRoleKey)
+  ? createClient(validUrl, supabaseServiceRoleKey)
   : supabase;
