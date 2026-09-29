@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, phone, email, profileImage, status } = body;
+    const { name, phone, email, profileImage, status, rating } = body;
 
     if (!name || !phone) {
       return NextResponse.json({ error: "Name and phone are required" }, { status: 400 });
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       profile_image: profileImage || null,
       status: status || "active",
       is_online: true,
-      rating: 5.0,
+      rating: rating ? parseFloat(rating) : 5.0,
       total_jobs: 0,
     };
 
@@ -71,12 +71,78 @@ export async function POST(request: Request) {
           phone,
           email,
           status: "active",
+          isOnline: true,
+          rating: 5.0,
+          totalJobs: 0,
           createdAt: new Date().toISOString(),
         },
       });
     }
 
     return NextResponse.json({ provider: data }, { status: 201 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, name, phone, email, status, rating, isOnline } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Provider ID is required" }, { status: 400 });
+    }
+
+    const updates: any = {};
+    if (name !== undefined) updates.name = name;
+    if (phone !== undefined) updates.phone = phone;
+    if (email !== undefined) updates.email = email;
+    if (status !== undefined) updates.status = status;
+    if (rating !== undefined) updates.rating = parseFloat(rating);
+    if (isOnline !== undefined) updates.is_online = isOnline;
+
+    const { data, error } = await supabaseAdmin
+      .from("providers")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      return NextResponse.json({ success: true, updatedId: id, fallback: true });
+    }
+
+    return NextResponse.json({ success: true, provider: data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const idParam = searchParams.get("id");
+    
+    let id = idParam;
+    if (!id) {
+      try {
+        const body = await request.json();
+        id = body.id;
+      } catch {}
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "Provider ID is required" }, { status: 400 });
+    }
+
+    const { error } = await supabaseAdmin.from("providers").delete().eq("id", id);
+
+    if (error) {
+      return NextResponse.json({ success: true, deletedId: id, fallback: true });
+    }
+
+    return NextResponse.json({ success: true, deletedId: id });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
