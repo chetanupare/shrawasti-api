@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       paymentStatus: b.payment_status,
       subtotal: b.subtotal,
       discount: b.discount,
-      total: b.total,
+      total: b.total || b.total_amount,
       status: b.status,
       createdAt: b.created_at,
       updatedAt: b.updated_at,
@@ -57,6 +57,65 @@ export async function GET(request: Request) {
         totalPages: Math.ceil(totalCount / limit) || 1,
       },
     });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, status, assignedProviderId, paymentStatus } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Booking ID is required" }, { status: 400 });
+    }
+
+    const updates: any = {};
+    if (status !== undefined) updates.status = status;
+    if (assignedProviderId !== undefined) updates.assigned_provider_id = assignedProviderId;
+    if (paymentStatus !== undefined) updates.payment_status = paymentStatus;
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabaseAdmin
+      .from("bookings")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, booking: data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    let id = searchParams.get("id");
+    if (!id) {
+      try {
+        const body = await request.json();
+        id = body.id;
+      } catch {}
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "Booking ID is required" }, { status: 400 });
+    }
+
+    const { error } = await supabaseAdmin.from("bookings").delete().eq("id", id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, deletedId: id });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
