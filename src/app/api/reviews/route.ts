@@ -54,6 +54,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Recalculate provider rating if providerId is present
+    if (providerId) {
+      try {
+        const { data: allReviews } = await supabase
+          .from("reviews")
+          .select("rating")
+          .eq("provider_id", providerId);
+
+        if (allReviews && allReviews.length > 0) {
+          const sum = allReviews.reduce((acc, r) => acc + (r.rating || 5), 0);
+          const avgRating = parseFloat((sum / allReviews.length).toFixed(1));
+
+          await supabase
+            .from("providers")
+            .update({ rating: avgRating, updated_at: new Date().toISOString() })
+            .eq("id", providerId);
+        }
+      } catch (err) {
+        console.warn("Failed to recalculate provider rating:", err);
+      }
+    }
+
     return NextResponse.json({ review: data }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
