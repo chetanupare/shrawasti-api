@@ -75,6 +75,45 @@ export async function POST(request: Request) {
       );
     }
 
+    const headerIdempotencyKey = request.headers.get("x-idempotency-key");
+    const keyToUse = idempotencyKey || headerIdempotencyKey || null;
+
+    if (keyToUse) {
+      const { data: existingBooking } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("idempotency_key", keyToUse)
+        .maybeSingle();
+
+      if (existingBooking) {
+        return NextResponse.json(
+          {
+            booking: {
+              id: existingBooking.id,
+              userId: existingBooking.user_id,
+              vehicleId: existingBooking.vehicle_id,
+              locationSnapshot: existingBooking.location_snapshot,
+              vehicleSnapshot: existingBooking.vehicle_snapshot,
+              services: existingBooking.services,
+              scheduleDate: existingBooking.schedule_date,
+              scheduleTime: existingBooking.schedule_time,
+              paymentMethod: existingBooking.payment_method,
+              paymentStatus: existingBooking.payment_status,
+              subtotal: existingBooking.subtotal,
+              discount: existingBooking.discount,
+              total: existingBooking.total,
+              status: existingBooking.status,
+              idempotencyKey: existingBooking.idempotency_key,
+              createdAt: existingBooking.created_at,
+              updatedAt: existingBooking.updated_at,
+            },
+            isDuplicate: true,
+          },
+          { status: 200 }
+        );
+      }
+    }
+
     const newBooking = {
       user_id: userId,
       vehicle_id: vehicleId || null,
@@ -89,7 +128,7 @@ export async function POST(request: Request) {
       discount: discount || 0,
       total: total,
       status: "pending",
-      idempotency_key: idempotencyKey || null,
+      idempotency_key: keyToUse,
     };
 
     const { data, error } = await supabase
