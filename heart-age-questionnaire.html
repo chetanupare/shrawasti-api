@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Know Your Heart – Heart Age Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F2EF;
+    --surface:#FFFFFF;
+    --ink:#2A1A22;
+    --muted:#7C6A70;
+    --line:#E7DCD7;
+    --garnet:#8A1E3F;
+    --crimson:#C41E4A;
+    --sage:#2F7A63;
+    --amber:#B9721A;
+    --alert:#C0392B;
+    --shadow:0 18px 50px -24px rgba(65,20,35,.35);
+    --serif:"Fraunces",Georgia,"Times New Roman",serif;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    padding:32px 18px 64px;
+  }
+  .wrap{max-width:560px;margin:0 auto}
+
+  /* ---- Header / hero ---- */
+  .brandline{display:flex;align-items:center;gap:9px;font-size:.72rem;font-weight:600;
+    letter-spacing:.14em;color:var(--crimson);text-transform:uppercase;margin-bottom:18px}
+  .brandline .dot{width:7px;height:7px;border-radius:50%;background:var(--crimson);
+    animation:beat 1.6s ease-in-out infinite}
+  @keyframes beat{0%,60%,100%{transform:scale(1);opacity:1}30%{transform:scale(1.7);opacity:.55}}
+
+  h1{font-family:var(--serif);font-weight:800;font-size:clamp(2rem,7vw,2.9rem);
+    line-height:1.02;letter-spacing:-.01em;margin:0 0 12px}
+  .lede{color:var(--muted);font-size:1.02rem;margin:0 0 22px;max-width:46ch}
+
+  .pulse{width:100%;height:54px;display:block;margin:2px 0 26px;overflow:visible}
+  .pulse path{fill:none;stroke:var(--crimson);stroke-width:2.4;
+    stroke-linecap:round;stroke-linejoin:round;
+    stroke-dasharray:620;stroke-dashoffset:620;animation:trace 2.6s ease-out .2s forwards}
+  @keyframes trace{to{stroke-dashoffset:0}}
+
+  /* ---- Form ---- */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;
+    padding:26px 24px;box-shadow:var(--shadow)}
+  .field{margin-bottom:22px}
+  .field:last-child{margin-bottom:0}
+  label.q{display:block;font-weight:600;font-size:.96rem;margin-bottom:9px}
+  .hint{color:var(--muted);font-size:.83rem;font-weight:400;margin-top:5px}
+
+  input[type=number]{
+    width:100%;font:inherit;font-size:1rem;padding:12px 14px;border:1px solid var(--line);
+    border-radius:11px;background:#FCFAF9;color:var(--ink);transition:border-color .15s,box-shadow .15s}
+  input[type=number]:focus{outline:none;border-color:var(--crimson);
+    box-shadow:0 0 0 3px rgba(196,30,74,.15)}
+  .pair{display:flex;gap:12px}
+  .pair>div{flex:1}
+
+  .seg{display:flex;gap:8px;flex-wrap:wrap}
+  .seg button{flex:1;min-width:calc(50% - 4px);font:inherit;font-weight:500;font-size:.95rem;
+    padding:12px 10px;border:1px solid var(--line);border-radius:11px;background:#FCFAF9;
+    color:var(--ink);cursor:pointer;transition:.15s}
+  .seg button:hover{border-color:#cbb;}
+  .seg button[aria-pressed=true]{background:var(--garnet);border-color:var(--garnet);color:#fff}
+  .seg.three button{min-width:calc(33.333% - 6px)}
+
+  .bp-toggle{background:none;border:none;color:var(--crimson);font:inherit;font-size:.85rem;
+    font-weight:600;cursor:pointer;padding:0;margin-top:8px;text-decoration:underline;text-underline-offset:3px}
+  .bp-cats{display:none;gap:8px;margin-top:10px}
+  .bp-cats.show{display:flex}
+
+  .check{display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border:1px solid var(--line);
+    border-radius:11px;background:#FCFAF9;cursor:pointer;user-select:none}
+  .check input{margin:3px 0 0;width:17px;height:17px;accent-color:var(--garnet);flex-shrink:0}
+  .check span{font-size:.93rem}
+
+  .cta{width:100%;margin-top:4px;font:inherit;font-weight:700;font-size:1.02rem;color:#fff;
+    background:var(--crimson);border:none;border-radius:12px;padding:15px;cursor:pointer;
+    transition:transform .12s,background .15s}
+  .cta:hover{background:#a8163c}
+  .cta:active{transform:translateY(1px)}
+
+  .err{color:var(--alert);font-size:.85rem;margin-top:14px;display:none}
+  .err.show{display:block}
+
+  /* ---- Result ---- */
+  .result{display:none;margin-top:26px;animation:rise .5s ease-out}
+  .result.show{display:block}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .rlabel{text-align:center;color:var(--muted);font-size:.9rem;margin:0 0 2px}
+  .bignum{font-family:var(--serif);font-weight:800;text-align:center;line-height:1;
+    font-size:clamp(4.5rem,20vw,6.5rem);margin:4px 0 2px}
+  .rsub{text-align:center;font-size:1rem;font-weight:600;margin:0 0 22px}
+  .rsub.good{color:var(--sage)}.rsub.warn{color:var(--amber)}.rsub.bad{color:var(--alert)}
+
+  .gauge{margin:0 0 22px}
+  .gauge .top{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);margin-bottom:7px}
+  .gauge .top b{color:var(--ink);font-size:.95rem}
+  .track{height:10px;border-radius:6px;background:#EEE4E0;overflow:hidden}
+  .fill{height:100%;width:0;border-radius:6px;transition:width 1s ease-out}
+
+  .drivers{border-top:1px solid var(--line);padding-top:18px;margin-top:2px}
+  .drivers h3{font-family:var(--serif);font-size:1.15rem;font-weight:600;margin:0 0 12px}
+  .drivers ul{list-style:none;margin:0;padding:0}
+  .drivers li{display:flex;gap:11px;align-items:flex-start;padding:9px 0;font-size:.93rem;
+    border-bottom:1px solid #F2E9E5}
+  .drivers li:last-child{border-bottom:none}
+  .pin{width:9px;height:9px;border-radius:50%;margin-top:6px;flex-shrink:0}
+  .pin.hi{background:var(--alert)}.pin.mid{background:var(--amber)}.pin.ok{background:var(--sage)}
+
+  .again{width:100%;margin-top:20px;font:inherit;font-weight:600;color:var(--garnet);
+    background:none;border:1px solid var(--line);border-radius:12px;padding:13px;cursor:pointer}
+  .again:hover{border-color:var(--garnet)}
+
+  .disc{font-size:.79rem;color:var(--muted);line-height:1.5;margin:22px 4px 0;text-align:center}
+  .disc strong{color:var(--ink)}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .pulse path{stroke-dashoffset:0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brandline"><span class="dot"></span>Know Your Heart · Shalina Healthcare</div>
+  <h1>How old is your heart?</h1>
+  <p class="lede">Your heart can be older or younger than you are, depending on how you live. Answer six quick questions to find your heart age.</p>
+
+  <svg class="pulse" viewBox="0 0 620 54" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,27 L230,27 L250,27 L262,9 L280,45 L296,18 L310,27 L360,27 L620,27"/>
+  </svg>
+
+  <div class="card">
+    <!-- QUESTIONNAIRE -->
+    <div id="quiz">
+      <div class="field">
+        <label class="q">1. What is your sex?</label>
+        <div class="seg" id="sex">
+          <button type="button" data-v="female" aria-pressed="false">Female</button>
+          <button type="button" data-v="male" aria-pressed="false">Male</button>
+        </div>
+        <p class="hint">Used because heart risk is calculated differently for women and men.</p>
+      </div>
+
+      <div class="field">
+        <label class="q" for="age">2. How old are you?</label>
+        <input type="number" id="age" inputmode="numeric" min="20" max="85" placeholder="Years">
+        <p class="hint">The check works best for ages 30–74.</p>
+      </div>
+
+      <div class="field">
+        <label class="q">3. Your height and weight</label>
+        <div class="pair">
+          <div><input type="number" id="height" inputmode="numeric" min="120" max="220" placeholder="Height (cm)"></div>
+          <div><input type="number" id="weight" inputmode="numeric" min="30" max="250" placeholder="Weight (kg)"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="q" for="sbp">4. Your blood pressure (upper number)</label>
+        <input type="number" id="sbp" inputmode="numeric" min="80" max="220" placeholder="e.g. 120 mmHg">
+        <button type="button" class="bp-toggle" id="bpToggle">I don't know my reading</button>
+        <div class="bp-cats seg three" id="bpCats">
+          <button type="button" data-sbp="115">Normal</button>
+          <button type="button" data-sbp="135">Raised</button>
+          <button type="button" data-sbp="155">High</button>
+        </div>
+        <label class="check" style="margin-top:12px">
+          <input type="checkbox" id="bpMed">
+          <span>I take medication for high blood pressure</span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label class="q">5. Do you smoke?</label>
+        <div class="seg" id="smoke">
+          <button type="button" data-v="no" aria-pressed="false">No</button>
+          <button type="button" data-v="yes" aria-pressed="false">Yes</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="q">6. Have you been diagnosed with diabetes?</label>
+        <div class="seg" id="diab">
+          <button type="button" data-v="no" aria-pressed="false">No</button>
+          <button type="button" data-v="yes" aria-pressed="false">Yes</button>
+        </div>
+      </div>
+
+      <button type="button" class="cta" id="calc">Show my heart age</button>
+      <p class="err" id="err">Please complete every question to see your result.</p>
+    </div>
+
+    <!-- RESULT -->
+    <div class="result" id="result">
+      <p class="rlabel">Your heart age is</p>
+      <div class="bignum" id="heartAge">–</div>
+      <p class="rsub" id="rsub"></p>
+
+      <div class="gauge">
+        <div class="top"><span>10-year chance of a heart attack or stroke</span><b id="riskPct">–</b></div>
+        <div class="track"><div class="fill" id="riskFill"></div></div>
+      </div>
+
+      <div class="drivers">
+        <h3>What's shaping your result</h3>
+        <ul id="drivers"></ul>
+      </div>
+
+      <button type="button" class="again" id="again">Start again</button>
+    </div>
+  </div>
+
+  <p class="disc"><strong>This is a general guide, not a medical diagnosis.</strong> Your heart age is an estimate based on the Framingham general cardiovascular risk method. It cannot account for your full medical history. Speak to a doctor or pharmacist about your heart health, especially before making changes to any medication.</p>
+</div>
+
+<script>
+(function(){
+  var state={sex:null,smoke:null,diab:null};
+
+  function segGroup(id,key){
+    var g=document.getElementById(id);
+    g.querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click',function(){
+        g.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed','false')});
+        b.setAttribute('aria-pressed','true');
+        state[key]=b.dataset.v;
+      });
+    });
+  }
+  segGroup('sex','sex');segGroup('smoke','smoke');segGroup('diab','diab');
+
+  // Blood pressure "don't know" categories
+  var bpToggle=document.getElementById('bpToggle'),bpCats=document.getElementById('bpCats'),sbpInput=document.getElementById('sbp');
+  bpToggle.addEventListener('click',function(){bpCats.classList.toggle('show')});
+  bpCats.querySelectorAll('button').forEach(function(b){
+    b.addEventListener('click',function(){
+      bpCats.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed','false')});
+      b.setAttribute('aria-pressed','true');
+      sbpInput.value=b.dataset.sbp;
+    });
+  });
+
+  // Framingham general CVD risk — BMI (non-laboratory) model, D'Agostino et al. 2008
+  var COEF={
+    male:{age:3.11296,bmi:0.79277,sbpU:1.85508,sbpT:1.92672,smoke:0.70953,diab:0.53160,s0:0.88431,mean:23.9388},
+    female:{age:2.72107,bmi:0.51125,sbpU:2.81291,sbpT:2.88267,smoke:0.61868,diab:0.77763,s0:0.94833,mean:26.0145}
+  };
+  function ln(x){return Math.log(x);}
+  function compute(p){
+    var c=COEF[p.sex];
+    var sbpBeta=p.treated?c.sbpT:c.sbpU;
+    var L=c.age*ln(p.age)+c.bmi*ln(p.bmi)+sbpBeta*ln(p.sbp)+(p.smoker?c.smoke:0)+(p.diabetic?c.diab:0);
+    var risk=1-Math.pow(c.s0,Math.exp(L-c.mean));
+    var constRef=c.bmi*ln(22)+c.sbpU*ln(125); // reference: healthy BMI, normal untreated BP, non-smoker, no diabetes
+    var heartAge=Math.exp((L-constRef)/c.age);
+    heartAge=Math.max(20,Math.min(90,Math.round(heartAge)));
+    return {risk:risk,heartAge:heartAge};
+  }
+
+  function num(id){var v=parseFloat(document.getElementById(id).value);return isNaN(v)?null:v;}
+
+  document.getElementById('calc').addEventListener('click',function(){
+    var age=num('age'),h=num('height'),w=num('weight'),sbp=num('sbp');
+    var err=document.getElementById('err');
+    if(!state.sex||!state.smoke||!state.diab||age===null||h===null||w===null||sbp===null){
+      err.classList.add('show');return;
+    }
+    err.classList.remove('show');
+    var bmi=w/Math.pow(h/100,2);
+    var r=compute({sex:state.sex,age:age,bmi:bmi,sbp:sbp,
+      treated:document.getElementById('bpMed').checked,
+      smoker:state.smoke==='yes',diabetic:state.diab==='yes'});
+
+    // Reveal result
+    document.getElementById('quiz').style.display='none';
+    var res=document.getElementById('result');res.classList.add('show');
+
+    // Count up heart age
+    var target=r.heartAge,el=document.getElementById('heartAge'),cur=Math.max(20,target-14),reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+    if(reduce){el.textContent=target;}else{
+      var t=setInterval(function(){cur++;el.textContent=cur;if(cur>=target)clearInterval(t);},45);
+    }
+
+    // Sub message
+    var gap=target-Math.round(age),sub=document.getElementById('rsub');
+    if(gap<=-2){sub.textContent='Younger than your actual age of '+Math.round(age)+' — that\'s good news.';sub.className='rsub good';}
+    else if(gap<2){sub.textContent='About the same as your actual age of '+Math.round(age)+'.';sub.className='rsub warn';}
+    else{sub.textContent=gap+' years older than your actual age of '+Math.round(age)+'.';sub.className='rsub bad';}
+
+    // Risk gauge (scaled so 20% fills the bar)
+    var pct=Math.round(r.risk*1000)/10;
+    document.getElementById('riskPct').textContent=pct+'%';
+    var fill=document.getElementById('riskFill');
+    var col=r.risk<0.10?'var(--sage)':r.risk<0.20?'var(--amber)':'var(--alert)';
+    fill.style.background=col;
+    setTimeout(function(){fill.style.width=Math.min(100,r.risk/0.20*100)+'%';},120);
+
+    // Drivers
+    var d=[];
+    d.push(state.smoke==='yes'
+      ?{lv:'hi',t:'Smoking is one of the strongest things ageing your heart. Stopping is the single biggest improvement you can make.'}
+      :{lv:'ok',t:'You don\'t smoke — a major protection for your heart.'});
+    if(sbp>=140||document.getElementById('bpMed').checked) d.push({lv:'hi',t:'Your blood pressure is in the high range. Getting it controlled lowers your risk quickly.'});
+    else if(sbp>=130) d.push({lv:'mid',t:'Your blood pressure is slightly raised. Less salt, more movement and regular checks help bring it down.'});
+    else d.push({lv:'ok',t:'Your blood pressure is in a healthy range.'});
+    if(bmi>=30) d.push({lv:'hi',t:'Your weight is in the range that adds strain to the heart. Even losing a little helps.'});
+    else if(bmi>=25) d.push({lv:'mid',t:'Your weight is slightly above the healthy range for your height.'});
+    else d.push({lv:'ok',t:'Your weight is in a healthy range for your height.'});
+    if(state.diab==='yes') d.push({lv:'hi',t:'Diabetes raises heart risk, so keeping your blood sugar well managed matters a lot.'});
+
+    var ul=document.getElementById('drivers');ul.innerHTML='';
+    d.forEach(function(x){
+      var li=document.createElement('li');
+      li.innerHTML='<span class="pin '+x.lv+'"></span><span>'+x.t+'</span>';
+      ul.appendChild(li);
+    });
+
+    res.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+  });
+
+  document.getElementById('again').addEventListener('click',function(){
+    document.getElementById('result').classList.remove('show');
+    document.getElementById('quiz').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+})();
+</script>
+</body>
+</html>
