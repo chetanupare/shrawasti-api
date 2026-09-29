@@ -30,6 +30,7 @@ import {
   Terminal,
   RefreshCw,
   Plus,
+  Minus,
   CheckCircle2,
   Database,
   DollarSign,
@@ -362,6 +363,51 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleUpdateSlotCapacity = async (slot: any, newCap: number) => {
+    if (newCap < 1) return;
+    try {
+      const res = await fetch("/api/admin/slots", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: slot.id,
+          maxCapacity: newCap,
+        }),
+      });
+      if (res.ok) {
+        showToast(`Slot capacity updated to ${newCap}`);
+        fetchAllData(true);
+      } else {
+        showToast("Failed to update slot capacity");
+      }
+    } catch (err) {
+      showToast("Error updating capacity");
+    }
+  };
+
+  const handleToggleSlotStatus = async (slot: any) => {
+    const currentActive = slot.isActive ?? slot.is_active ?? true;
+    const newActive = !currentActive;
+    try {
+      const res = await fetch("/api/admin/slots", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: slot.id,
+          isActive: newActive,
+        }),
+      });
+      if (res.ok) {
+        showToast(newActive ? "Slot opened for bookings" : "Slot closed");
+        fetchAllData(true);
+      } else {
+        showToast("Failed to toggle slot status");
+      }
+    } catch (err) {
+      showToast("Error toggling slot status");
+    }
+  };
+
   const handleSaveBooking = async () => {
     if (!editingBooking) return;
     try {
@@ -512,8 +558,8 @@ export default function AdminDashboard() {
       matchesVehicle = !is2W;
     }
 
-    const bType = (s.bodyType || s.body_type || "all").toLowerCase();
-    const matchesBody = serviceBodyTypeFilter === "all" || bType.includes(serviceBodyTypeFilter.toLowerCase()) || bType === "all";
+    const bType = (s.bodyType || s.body_type || "").toLowerCase();
+    const matchesBody = serviceBodyTypeFilter === "all" || !bType || bType === "all" || bType.includes(serviceBodyTypeFilter.toLowerCase());
 
     return matchesQuery && matchesVehicle && matchesBody;
   });
@@ -1400,7 +1446,7 @@ export default function AdminDashboard() {
                           <Button
                             key={v.id}
                             size="xs"
-                            onClick={() => setServiceVehicleFilter(v.id)}
+                            onClick={() => { setServiceVehicleFilter(v.id); setServiceBodyTypeFilter("all"); }}
                             bg={serviceVehicleFilter === v.id ? "#2563EB" : "#1E293B"}
                             color={serviceVehicleFilter === v.id ? "#FFFFFF" : "#E2E8F0"}
                             border="1px solid"
@@ -1530,10 +1576,14 @@ export default function AdminDashboard() {
                 {/* TAB 6: SLOTS */}
                 {activeTab === "slots" && (
                   <Stack gap="6">
-                    <Flex justifyContent="space-between" alignItems="center">
-                      <Heading size="xs" color="white" fontWeight="bold">
-                        Slots ({filteredSlots.length})
-                      </Heading>
+                    <Flex justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="3">
+                      <HStack gap="2">
+                        <Clock size={18} color="#C084FC" />
+                        <Heading size="xs" color="white" fontWeight="bold">
+                          Slots ({filteredSlots.length})
+                        </Heading>
+                      </HStack>
+
                       <Button
                         size="xs"
                         colorScheme="purple"
@@ -1547,41 +1597,105 @@ export default function AdminDashboard() {
                       </Button>
                     </Flex>
 
-                    <Grid templateColumns={{ base: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }} gap="3">
-                      {filteredSlots.map((s) => (
-                        <Card.Root key={s.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="3">
-                          <Flex justifyContent="space-between" alignItems="center" mb="2">
-                            <Text fontSize="xs" fontWeight="bold" color="#FFFFFF">
-                              {s.slotTime || s.slot_time || s.time}
-                            </Text>
-                            <Badge colorScheme={s.isActive ?? s.is_available ? "green" : "gray"} fontSize="10px" fontWeight="bold">
-                              {s.isActive ?? s.is_available ? "Open" : "Booked"}
-                            </Badge>
-                          </Flex>
+                    {filteredSlots.length === 0 ? (
+                      <Flex p="8" justifyContent="center" alignItems="center" flexDir="column" gap="3">
+                        <Text color="gray.300" fontSize="sm">
+                          No time slots available. Click "Create Slot" to add one.
+                        </Text>
+                      </Flex>
+                    ) : (
+                      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" }} gap="3">
+                        {filteredSlots.map((s) => {
+                          const cap = s.maxCapacity || s.max_capacity || 10;
+                          const active = s.isActive ?? s.is_active ?? true;
+                          return (
+                            <Card.Root key={s.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="3.5">
+                              <Flex justifyContent="space-between" alignItems="center" mb="3">
+                                <HStack gap="1.5">
+                                  <Clock size={14} color="#A7F3D0" />
+                                  <Text fontSize="xs" fontWeight="bold" color="#FFFFFF">
+                                    {s.slotTime || s.slot_time || s.time}
+                                  </Text>
+                                </HStack>
+                                <Button
+                                  size="2xs"
+                                  onClick={() => handleToggleSlotStatus(s)}
+                                  bg={active ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}
+                                  color={active ? "#6EE7B7" : "#FCA5A5"}
+                                  border="1px solid"
+                                  borderColor={active ? "rgba(52, 211, 153, 0.4)" : "rgba(248, 113, 113, 0.4)"}
+                                  _hover={{ bg: active ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)" }}
+                                  borderRadius="md"
+                                  px="2"
+                                  py="0.5"
+                                  fontSize="10px"
+                                  fontWeight="bold"
+                                >
+                                  {active ? "Active / Open" : "Closed"}
+                                </Button>
+                              </Flex>
 
-                          <Flex justifyContent="space-between" alignItems="center">
-                            <Text fontSize="10px" color="gray.300">
-                              Cap: {s.maxCapacity || 10}
-                            </Text>
-                            <HStack gap="1">
-                              <IconButton
-                                size="xs"
-                                colorScheme="blue"
-                                variant="ghost"
-                                aria-label="Edit slot"
-                                onClick={() => {
-                                  setEditingSlot(s);
-                                  setSlotForm({
-                                    slotTime: s.slotTime || s.slot_time || "",
-                                    maxCapacity: s.maxCapacity || 10,
-                                    isActive: s.isActive ?? true,
-                                  });
-                                  setShowSlotModal(true);
-                                }}
-                              >
-                                <Edit size={12} />
-                              </IconButton>
-                              <IconButton
+                              <Box bg="#1E293B" p="2.5" borderRadius="lg" border="1px solid" borderColor="rgba(255, 255, 255, 0.1)" mb="3">
+                                <Text fontSize="10px" color="gray.400" fontWeight="bold" mb="1.5" textAlign="center">
+                                  SLOT CAPACITY MANAGEMENT
+                                </Text>
+                                <Flex justifyContent="space-between" alignItems="center">
+                                  <Button
+                                    size="xs"
+                                    onClick={() => handleUpdateSlotCapacity(s, cap - 1)}
+                                    disabled={cap <= 1}
+                                    bg="#334155"
+                                    color="white"
+                                    _hover={{ bg: "#475569" }}
+                                    borderRadius="md"
+                                    px="2"
+                                    minW="32px"
+                                    h="28px"
+                                  >
+                                    <Minus size={14} />
+                                  </Button>
+                                  <VStack gap="0" align="center">
+                                    <Text fontSize="md" fontWeight="extrabold" color="#38BDF8">
+                                      {cap}
+                                    </Text>
+                                    <Text fontSize="9px" color="gray.300">
+                                      max bookings
+                                    </Text>
+                                  </VStack>
+                                  <Button
+                                    size="xs"
+                                    onClick={() => handleUpdateSlotCapacity(s, cap + 1)}
+                                    bg="#334155"
+                                    color="white"
+                                    _hover={{ bg: "#475569" }}
+                                    borderRadius="md"
+                                    px="2"
+                                    minW="32px"
+                                    h="28px"
+                                  >
+                                    <Plus size={14} />
+                                  </Button>
+                                </Flex>
+                              </Box>
+
+                              <Flex justifyContent="flex-end" gap="1.5" pt="2" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+                                <Button
+                                  size="xs"
+                                  colorScheme="blue"
+                                  variant="subtle"
+                                  onClick={() => {
+                                    setEditingSlot(s);
+                                    setSlotForm({
+                                      slotTime: s.slotTime || s.slot_time || "",
+                                      maxCapacity: cap,
+                                      isActive: active,
+                                    });
+                                    setShowSlotModal(true);
+                                  }}
+                                >
+                                  <Edit size={12} style={{ marginRight: "4px" }} /> Edit
+                                </Button>
+                                <IconButton
                                   size="xs"
                                   variant="solid"
                                   bg="#DC2626"
@@ -1592,11 +1706,12 @@ export default function AdminDashboard() {
                                 >
                                   <Trash2 size={14} color="#FFFFFF" />
                                 </IconButton>
-                            </HStack>
-                          </Flex>
-                        </Card.Root>
-                      ))}
-                    </Grid>
+                              </Flex>
+                            </Card.Root>
+                          );
+                        })}
+                      </Grid>
+                    )}
                   </Stack>
                 )}
 
@@ -1635,7 +1750,7 @@ export default function AdminDashboard() {
                           <Button
                             key={vc.id}
                             size="xs"
-                            onClick={() => setVehicleCategoryFilter(vc.id)}
+                            onClick={() => { setVehicleCategoryFilter(vc.id); setVehicleBodyTypeFilter("all"); }}
                             bg={vehicleCategoryFilter === vc.id ? "#7C3AED" : "#1E293B"}
                             color={vehicleCategoryFilter === vc.id ? "#FFFFFF" : "#E2E8F0"}
                             border="1px solid"
@@ -2087,8 +2202,69 @@ export default function AdminDashboard() {
             <form onSubmit={handleSaveSlot}>
               <Stack gap="4">
                 <Box>
-                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Time Slot</Text>
-                  <Input required value={slotForm.slotTime} onChange={(e) => setSlotForm({ ...slotForm, slotTime: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Time Slot Range</Text>
+                  <Input required value={slotForm.slotTime} onChange={(e) => setSlotForm({ ...slotForm, slotTime: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="09:00 AM - 10:00 AM" />
+                </Box>
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Maximum Booking Capacity</Text>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    required
+                    value={slotForm.maxCapacity}
+                    onChange={(e) => setSlotForm({ ...slotForm, maxCapacity: parseInt(e.target.value) || 1 })}
+                    bg="#1E293B"
+                    color="#FFFFFF"
+                    borderRadius="lg"
+                    placeholder="10"
+                    mb="2"
+                  />
+                  <Text fontSize="10px" color="gray.400" mb="1">Quick capacity presets:</Text>
+                  <HStack gap="1.5" flexWrap="wrap">
+                    {[5, 10, 15, 20, 25, 50].map((presetCap) => (
+                      <Button
+                        key={presetCap}
+                        size="2xs"
+                        type="button"
+                        onClick={() => setSlotForm({ ...slotForm, maxCapacity: presetCap })}
+                        bg={slotForm.maxCapacity === presetCap ? "#7C3AED" : "#1E293B"}
+                        color={slotForm.maxCapacity === presetCap ? "#FFFFFF" : "#CBD5E1"}
+                        border="1px solid"
+                        borderColor={slotForm.maxCapacity === presetCap ? "#8B5CF6" : "rgba(255, 255, 255, 0.2)"}
+                        borderRadius="md"
+                        px="2.5"
+                        py="1"
+                      >
+                        {presetCap} max
+                      </Button>
+                    ))}
+                  </HStack>
+                </Box>
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Slot Status</Text>
+                  <HStack gap="2">
+                    <Button
+                      size="xs"
+                      type="button"
+                      onClick={() => setSlotForm({ ...slotForm, isActive: true })}
+                      variant={slotForm.isActive ? "solid" : "outline"}
+                      colorScheme={slotForm.isActive ? "green" : "gray"}
+                      flex="1"
+                    >
+                      Active / Open
+                    </Button>
+                    <Button
+                      size="xs"
+                      type="button"
+                      onClick={() => setSlotForm({ ...slotForm, isActive: false })}
+                      variant={!slotForm.isActive ? "solid" : "outline"}
+                      colorScheme={!slotForm.isActive ? "red" : "gray"}
+                      flex="1"
+                    >
+                      Closed / Full
+                    </Button>
+                  </HStack>
                 </Box>
                 <Flex justifyContent="flex-end" gap="3" pt="4">
                   <Button variant="ghost" color="gray.300" onClick={() => setShowSlotModal(false)}>Cancel</Button>
