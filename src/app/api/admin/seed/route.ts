@@ -29,16 +29,16 @@ export async function POST() {
 
     // 3. Seed Vehicle Catalog
     const initialVehicles = [
-      { brand: "Tata", model: "Nexon", category: "Car", body_type: "SUV" },
-      { brand: "Tata", model: "Punch", category: "Car", body_type: "Compact SUV" },
-      { brand: "Hyundai", model: "Creta", category: "Car", body_type: "SUV" },
-      { brand: "Maruti", model: "Swift", category: "Car", body_type: "Hatchback" },
-      { brand: "Honda", model: "City", category: "Car", body_type: "Sedan" },
-      { brand: "Mahindra", model: "Thar", category: "Car", body_type: "SUV" },
-      { brand: "Hero", model: "Splendor Plus", category: "Bike", body_type: "Standard" },
-      { brand: "Honda", model: "Activa 6G", category: "Bike", body_type: "Scooter" },
-      { brand: "Royal Enfield", model: "Classic 350", category: "Bike", body_type: "Cruiser" },
-      { brand: "TVS", model: "Jupiter", category: "Bike", body_type: "Scooter" },
+      { brand: "Tata", model: "Nexon", category: "Car", body_type: "SUV", model_image: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=400&q=80" },
+      { brand: "Tata", model: "Punch", category: "Car", body_type: "Compact SUV", model_image: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=400&q=80" },
+      { brand: "Hyundai", model: "Creta", category: "Car", body_type: "SUV", model_image: "https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=400&q=80" },
+      { brand: "Maruti", model: "Swift", category: "Car", body_type: "Hatchback", model_image: "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=400&q=80" },
+      { brand: "Honda", model: "City", category: "Car", body_type: "Sedan", model_image: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=400&q=80" },
+      { brand: "Mahindra", model: "Thar", category: "Car", body_type: "SUV", model_image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=400&q=80" },
+      { brand: "Hero", model: "Splendor Plus", category: "Bike", body_type: "Standard", model_image: "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=400&q=80" },
+      { brand: "Honda", model: "Activa 6G", category: "Bike", body_type: "Scooter", model_image: "https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=400&q=80" },
+      { brand: "Royal Enfield", model: "Classic 350", category: "Bike", body_type: "Cruiser", model_image: "https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=400&q=80" },
+      { brand: "TVS", model: "Jupiter", category: "Bike", body_type: "Scooter", model_image: "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=400&q=80" },
     ];
     const { data: catalog, error: vErr } = await supabaseAdmin.from("vehicle_catalog").insert(initialVehicles).select();
     results.vehicleCatalog = vErr ? vErr.message : catalog?.length;

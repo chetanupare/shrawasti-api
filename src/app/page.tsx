@@ -107,7 +107,7 @@ export default function AdminDashboard() {
   // Modal states
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<any | null>(null);
-  const [vehicleForm, setVehicleForm] = useState({ brand: "", model: "", category: "Car", bodyType: "Hatchback" });
+  const [vehicleForm, setVehicleForm] = useState({ brand: "", model: "", category: "Car", bodyType: "Hatchback", modelImage: "" });
 
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingService, setEditingService] = useState<any | null>(null);
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
         showToast(editingVehicle ? "Vehicle model updated!" : "Vehicle model added to catalog!");
         setShowVehicleModal(false);
         setEditingVehicle(null);
-        setVehicleForm({ brand: "", model: "", category: "Car", bodyType: "Hatchback" });
+        setVehicleForm({ brand: "", model: "", category: "Car", bodyType: "Hatchback", modelImage: "" });
         fetchAllData(true);
       } else {
         const data = await res.json();
@@ -1589,7 +1589,7 @@ export default function AdminDashboard() {
                         colorScheme="purple"
                         onClick={() => {
                           setEditingVehicle(null);
-                          setVehicleForm({ brand: "", model: "", category: "Car", bodyType: "Hatchback" });
+                          setVehicleForm({ brand: "", model: "", category: "Car", bodyType: "Hatchback", modelImage: "" });
                           setShowVehicleModal(true);
                         }}
                       >
@@ -1654,13 +1654,27 @@ export default function AdminDashboard() {
                       <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap="4">
                         {filteredVehicles.map((v) => {
                           const isBike = (v.category || "").toLowerCase().includes("bike") || (v.category || "").toLowerCase().includes("2w");
+                          const imgUrl = v.modelImage || v.model_image;
                           return (
                             <Card.Root key={v.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
                               <Flex justifyContent="space-between" alignItems="flex-start" mb="3">
                                 <HStack gap="2.5">
-                                  <Flex w="36px" h="36px" borderRadius="xl" bg={isBike ? "amber.900" : "purple.900"} color={isBike ? "#FDE047" : "#C084FC"} alignItems="center" justifyContent="center">
-                                    {isBike ? <Bike size={18} /> : <Car size={18} />}
-                                  </Flex>
+                                  {imgUrl ? (
+                                    <Flex w="48px" h="48px" borderRadius="xl" overflow="hidden" bg="#1E293B" border="1px solid" borderColor="rgba(255, 255, 255, 0.2)" flexShrink={0} alignItems="center" justifyContent="center">
+                                      <img
+                                        src={imgUrl}
+                                        alt={`${v.brand} ${v.model}`}
+                                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                        onError={(e) => {
+                                          (e.currentTarget as HTMLElement).style.display = "none";
+                                        }}
+                                      />
+                                    </Flex>
+                                  ) : (
+                                    <Flex w="40px" h="40px" borderRadius="xl" bg={isBike ? "amber.900" : "purple.900"} color={isBike ? "#FDE047" : "#C084FC"} alignItems="center" justifyContent="center">
+                                      {isBike ? <Bike size={20} /> : <Car size={20} />}
+                                    </Flex>
+                                  )}
                                   <Box>
                                     <Heading size="xs" color="#FFFFFF" fontWeight="bold">
                                       {v.brand} {v.model}
@@ -1687,6 +1701,7 @@ export default function AdminDashboard() {
                                       model: v.model || "",
                                       category: v.category || "Car",
                                       bodyType: v.bodyType || v.body_type || "Hatchback",
+                                      modelImage: v.modelImage || v.model_image || "",
                                     });
                                     setShowVehicleModal(true);
                                   }}
@@ -1912,6 +1927,25 @@ export default function AdminDashboard() {
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Model Name</Text>
                   <Input required value={vehicleForm.model} onChange={(e) => setVehicleForm({ ...vehicleForm, model: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="e.g. Swift, Creta, Classic 350" />
                 </Box>
+
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Model Picture / Image URL</Text>
+                  <Input value={vehicleForm.modelImage} onChange={(e) => setVehicleForm({ ...vehicleForm, modelImage: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="https://images.unsplash.com/photo-1549399542-7e3f8b79c341" />
+                </Box>
+
+                {vehicleForm.modelImage && (
+                  <Flex alignItems="center" gap="3" p="2.5" bg="#1E293B" borderRadius="xl" border="1px dashed" borderColor="purple.400">
+                    <img
+                      src={vehicleForm.modelImage}
+                      alt="Model Preview"
+                      style={{ width: "48px", height: "48px", objectFit: "cover", borderRadius: "8px" }}
+                      onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }}
+                    />
+                    <Text fontSize="xs" color="gray.300" fontWeight="bold">
+                      Live Picture Preview
+                    </Text>
+                  </Flex>
+                )}
 
                 <Flex justifyContent="flex-end" gap="3" pt="4">
                   <Button variant="ghost" color="gray.300" onClick={() => setShowVehicleModal(false)}>Cancel</Button>
