@@ -30,15 +30,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const assignedBooking = {
+      id: data.id,
+      assignedProviderId: data.assigned_provider_id,
+      locationSnapshot: data.location_snapshot,
+      vehicleSnapshot: data.vehicle_snapshot,
+      services: data.services,
+      status: data.status,
+      updatedAt: data.updated_at,
+    };
+
+    // Trigger push notification to assigned provider
+    const { notifyProviderJobAssigned } = await import("@/lib/notifications");
+    notifyProviderJobAssigned(providerId, assignedBooking).catch((err) =>
+      console.error("Failed to notify assigned provider:", err)
+    );
+
     return NextResponse.json({
       success: true,
       message: "Serviceman assigned successfully to booking",
-      booking: {
-        id: data.id,
-        assignedProviderId: data.assigned_provider_id,
-        status: data.status,
-        updatedAt: data.updated_at,
-      },
+      booking: assignedBooking,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

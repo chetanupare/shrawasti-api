@@ -141,28 +141,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const createdBooking = {
+      id: data.id,
+      userId: data.user_id,
+      vehicleId: data.vehicle_id,
+      locationSnapshot: data.location_snapshot,
+      vehicleSnapshot: data.vehicle_snapshot,
+      services: data.services,
+      scheduleDate: data.schedule_date,
+      scheduleTime: data.schedule_time,
+      paymentMethod: data.payment_method,
+      paymentStatus: data.payment_status,
+      subtotal: data.subtotal,
+      discount: data.discount,
+      total: data.total,
+      status: data.status,
+      idempotencyKey: data.idempotency_key,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+
+    // Trigger push notifications to online technicians
+    const { notifyOnlineProvidersNewJob } = await import("@/lib/notifications");
+    notifyOnlineProvidersNewJob(createdBooking).catch((err) =>
+      console.error("Failed to notify online providers:", err)
+    );
+
     return NextResponse.json(
-      {
-        booking: {
-          id: data.id,
-          userId: data.user_id,
-          vehicleId: data.vehicle_id,
-          locationSnapshot: data.location_snapshot,
-          vehicleSnapshot: data.vehicle_snapshot,
-          services: data.services,
-          scheduleDate: data.schedule_date,
-          scheduleTime: data.schedule_time,
-          paymentMethod: data.payment_method,
-          paymentStatus: data.payment_status,
-          subtotal: data.subtotal,
-          discount: data.discount,
-          total: data.total,
-          status: data.status,
-          idempotencyKey: data.idempotency_key,
-          createdAt: data.created_at,
-          updatedAt: data.updated_at,
-        },
-      },
+      { booking: createdBooking },
       { status: 201 }
     );
   } catch (err: any) {
