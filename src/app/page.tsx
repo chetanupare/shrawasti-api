@@ -28,19 +28,13 @@ import {
   Activity,
   Terminal,
   RefreshCw,
-  Search,
   Plus,
   CheckCircle2,
-  AlertCircle,
   Database,
-  ExternalLink,
   DollarSign,
   Send,
-  Zap,
-  ShieldCheck,
-  Building,
-  Layers,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -87,7 +81,7 @@ export default function AdminDashboard() {
 
   // Modal states
   const [showAddServiceModal, setShowAddServiceModal] = useState(false);
-  const [newService, setNewService] = useState({ name: "", category: "car_wash", price: 499, duration: "45 mins" });
+  const [newService, setNewService] = useState({ name: "", category: "car_wash", basePrice: 499, durationMinutes: "45" });
   
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -111,21 +105,52 @@ export default function AdminDashboard() {
         vehiclesRes,
       ] = await Promise.all([
         fetch("/api/admin/dashboard/stats").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/admin/bookings").then((r) => r.json()).catch(() => []),
-        fetch("/api/admin/users").then((r) => r.json()).catch(() => []),
-        fetch("/api/admin/providers").then((r) => r.json()).catch(() => []),
-        fetch("/api/admin/services").then((r) => r.json()).catch(() => []),
-        fetch("/api/admin/slots").then((r) => r.json()).catch(() => []),
-        fetch("/api/admin/vehicles/catalog").then((r) => r.json()).catch(() => []),
+        fetch("/api/admin/bookings").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/admin/users").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/admin/providers").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/admin/services").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/admin/slots").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/admin/vehicles/catalog").then((r) => r.json()).catch(() => ({})),
       ]);
 
       if (statsRes.success) setStats(statsRes.stats);
-      if (Array.isArray(bookingsRes)) setBookings(bookingsRes);
-      if (Array.isArray(usersRes)) setUsers(usersRes);
-      if (Array.isArray(providersRes)) setProviders(providersRes);
-      if (Array.isArray(servicesRes)) setServices(servicesRes);
-      if (Array.isArray(slotsRes)) setSlots(slotsRes);
-      if (Array.isArray(vehiclesRes)) setVehicles(vehiclesRes);
+
+      // Bookings extraction (supports { bookings: [...] } or array)
+      const extractedBookings = Array.isArray(bookingsRes)
+        ? bookingsRes
+        : bookingsRes.bookings || [];
+      setBookings(extractedBookings);
+
+      // Users extraction (supports { users: [...] } or array)
+      const extractedUsers = Array.isArray(usersRes)
+        ? usersRes
+        : usersRes.users || [];
+      setUsers(extractedUsers);
+
+      // Providers extraction (supports { providers: [...] } or array)
+      const extractedProviders = Array.isArray(providersRes)
+        ? providersRes
+        : providersRes.providers || [];
+      setProviders(extractedProviders);
+
+      // Services extraction (supports { services: [...] } or array)
+      const extractedServices = Array.isArray(servicesRes)
+        ? servicesRes
+        : servicesRes.services || [];
+      setServices(extractedServices);
+
+      // Slots extraction (supports { slots: [...] } or array)
+      const extractedSlots = Array.isArray(slotsRes)
+        ? slotsRes
+        : slotsRes.slots || [];
+      setSlots(extractedSlots);
+
+      // Vehicles extraction (supports { catalog: [...] } or array)
+      const extractedVehicles = Array.isArray(vehiclesRes)
+        ? vehiclesRes
+        : vehiclesRes.catalog || vehiclesRes.vehicles || [];
+      setVehicles(extractedVehicles);
+
     } catch (err) {
       console.error("Error loading dashboard data:", err);
     } finally {
@@ -172,7 +197,7 @@ export default function AdminDashboard() {
       if (res.ok) {
         showToast("Service created successfully!");
         setShowAddServiceModal(false);
-        setNewService({ name: "", category: "car_wash", price: 499, duration: "45 mins" });
+        setNewService({ name: "", category: "car_wash", basePrice: 499, durationMinutes: "45" });
         fetchAllData(true);
       } else {
         showToast("Error: " + (data.error || "Failed to create service"));
@@ -219,7 +244,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Status color mapper for Chakra UI
+  // Status color mapper
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case "confirmed":
@@ -236,10 +261,12 @@ export default function AdminDashboard() {
   };
 
   const filteredBookings = bookings.filter((b) => {
+    const custName = b.user?.name || b.users?.name || "";
+    const custEmail = b.user?.email || b.users?.email || "";
     const matchesSearch =
       b.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.users?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.users?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      custName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      custEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
       b.status?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || b.status?.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
@@ -478,28 +505,28 @@ export default function AdminDashboard() {
                       },
                       {
                         title: "Total Bookings",
-                        value: stats.totalBookings || 0,
+                        value: stats.totalBookings || bookings.length || 0,
                         icon: CalendarCheck,
                         color: "blue.400",
                         bg: "rgba(59, 130, 246, 0.1)",
                       },
                       {
                         title: "Confirmed Jobs",
-                        value: stats.confirmedBookings || 0,
+                        value: stats.confirmedBookings || bookings.filter((b) => b.status === "confirmed").length || 0,
                         icon: CheckCircle2,
                         color: "purple.400",
                         bg: "rgba(168, 85, 247, 0.1)",
                       },
                       {
                         title: "Registered Users",
-                        value: stats.totalUsers || 0,
+                        value: stats.totalUsers || users.length || 0,
                         icon: Users,
                         color: "amber.400",
                         bg: "rgba(245, 158, 11, 0.1)",
                       },
                       {
                         title: "Active Providers",
-                        value: stats.activeProviders || 0,
+                        value: stats.activeProviders || providers.length || 0,
                         icon: UserCheck,
                         color: "teal.400",
                         bg: "rgba(20, 184, 166, 0.1)",
@@ -541,7 +568,7 @@ export default function AdminDashboard() {
                         <HStack gap="2">
                           <CalendarCheck size={18} color="#3B82F6" />
                           <Heading size="sm" color="white">
-                            Recent Dynamic Bookings
+                            Recent Dynamic Bookings ({bookings.length})
                           </Heading>
                         </HStack>
                         <Button size="xs" variant="ghost" color="blue.400" onClick={() => setActiveTab("bookings")}>
@@ -550,54 +577,71 @@ export default function AdminDashboard() {
                       </Flex>
 
                       <Box overflowX="auto" p="2">
-                        <Table.Root size="sm" variant="outline" colorScheme="whiteAlpha">
-                          <Table.Header>
-                            <Table.Row borderColor="whiteAlpha.100">
-                              <Table.ColumnHeader color="gray.400">ID / Date</Table.ColumnHeader>
-                              <Table.ColumnHeader color="gray.400">Customer</Table.ColumnHeader>
-                              <Table.ColumnHeader color="gray.400">Service & Price</Table.ColumnHeader>
-                              <Table.ColumnHeader color="gray.400">Status</Table.ColumnHeader>
-                            </Table.Row>
-                          </Table.Header>
-                          <Table.Body>
-                            {bookings.slice(0, 5).map((b) => {
-                              const st = getStatusColor(b.status);
-                              return (
-                                <Table.Row key={b.id} _hover={{ bg: "whiteAlpha.50" }} borderColor="whiteAlpha.100">
-                                  <Table.Cell>
-                                    <Text fontSize="xs" fontWeight="bold" color="blue.300">
-                                      #{b.id?.substring(0, 8)}
-                                    </Text>
-                                    <Text fontSize="10px" color="gray.400">
-                                      {b.booking_date || b.created_at?.split("T")[0] || "Today"}
-                                    </Text>
-                                  </Table.Cell>
-                                  <Table.Cell>
-                                    <Text fontSize="xs" fontWeight="semibold" color="white">
-                                      {b.users?.name || "Customer"}
-                                    </Text>
-                                    <Text fontSize="10px" color="gray.400">
-                                      {b.users?.phone || b.users?.email || "-"}
-                                    </Text>
-                                  </Table.Cell>
-                                  <Table.Cell>
-                                    <Text fontSize="xs" color="gray.200">
-                                      {b.services?.name || "Car Wash & Detailing"}
-                                    </Text>
-                                    <Text fontSize="xs" fontWeight="bold" color="emerald.400">
-                                      ₹{b.total_amount || 499}
-                                    </Text>
-                                  </Table.Cell>
-                                  <Table.Cell>
-                                    <Badge bg={st.bg} color={st.color} border="1px solid" borderColor={st.border} px="2" py="0.5" borderRadius="md" textTransform="capitalize" fontSize="xs">
-                                      {b.status || "pending"}
-                                    </Badge>
-                                  </Table.Cell>
-                                </Table.Row>
-                              );
-                            })}
-                          </Table.Body>
-                        </Table.Root>
+                        {bookings.length === 0 ? (
+                          <Flex p="6" justifyContent="center" alignItems="center" flexDir="column" gap="3">
+                            <Text color="gray.400" fontSize="xs">
+                              No bookings found in database yet.
+                            </Text>
+                            <Button size="xs" colorScheme="blue" onClick={handleSeedDatabase} disabled={seeding}>
+                              Seed Database Now
+                            </Button>
+                          </Flex>
+                        ) : (
+                          <Table.Root size="sm" variant="outline" colorScheme="whiteAlpha">
+                            <Table.Header>
+                              <Table.Row borderColor="whiteAlpha.100">
+                                <Table.ColumnHeader color="gray.400">ID / Date</Table.ColumnHeader>
+                                <Table.ColumnHeader color="gray.400">Customer</Table.ColumnHeader>
+                                <Table.ColumnHeader color="gray.400">Service & Price</Table.ColumnHeader>
+                                <Table.ColumnHeader color="gray.400">Status</Table.ColumnHeader>
+                              </Table.Row>
+                            </Table.Header>
+                            <Table.Body>
+                              {bookings.slice(0, 5).map((b) => {
+                                const st = getStatusColor(b.status);
+                                const custName = b.user?.name || b.users?.name || "Customer";
+                                const custPhone = b.user?.phone || b.users?.phone || b.user?.email || b.users?.email || "-";
+                                const serviceName = b.services?.name || b.service_name || "Car Wash & Detailing";
+                                const price = b.total || b.subtotal || b.total_amount || 499;
+                                const dateStr = b.scheduleDate || b.booking_date || b.createdAt?.split("T")[0] || "Today";
+
+                                return (
+                                  <Table.Row key={b.id} _hover={{ bg: "whiteAlpha.50" }} borderColor="whiteAlpha.100">
+                                    <Table.Cell>
+                                      <Text fontSize="xs" fontWeight="bold" color="blue.300">
+                                        #{b.id?.substring(0, 8)}
+                                      </Text>
+                                      <Text fontSize="10px" color="gray.400">
+                                        {dateStr}
+                                      </Text>
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                      <Text fontSize="xs" fontWeight="semibold" color="white">
+                                        {custName}
+                                      </Text>
+                                      <Text fontSize="10px" color="gray.400">
+                                        {custPhone}
+                                      </Text>
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                      <Text fontSize="xs" color="gray.200">
+                                        {serviceName}
+                                      </Text>
+                                      <Text fontSize="xs" fontWeight="bold" color="emerald.400">
+                                        ₹{price}
+                                      </Text>
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                      <Badge bg={st.bg} color={st.color} border="1px solid" borderColor={st.border} px="2" py="0.5" borderRadius="md" textTransform="capitalize" fontSize="xs">
+                                        {b.status || "pending"}
+                                      </Badge>
+                                    </Table.Cell>
+                                  </Table.Row>
+                                );
+                              })}
+                            </Table.Body>
+                          </Table.Root>
+                        )}
                       </Box>
                     </Card.Root>
 
@@ -607,7 +651,7 @@ export default function AdminDashboard() {
                         <HStack gap="2">
                           <UserCheck size={18} color="#10B981" />
                           <Heading size="sm" color="white">
-                            Active Providers
+                            Active Providers ({providers.length})
                           </Heading>
                         </HStack>
                         <Button size="xs" variant="ghost" color="blue.400" onClick={() => setActiveTab("providers")}>
@@ -616,33 +660,39 @@ export default function AdminDashboard() {
                       </Flex>
 
                       <VStack p="4" align="stretch" gap="3">
-                        {providers.slice(0, 4).map((p) => (
-                          <Flex
-                            key={p.id}
-                            p="3"
-                            borderRadius="lg"
-                            bg="#1E293B"
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <HStack gap="3">
-                              <Flex w="36px" h="36px" borderRadius="full" bg="blue.900" color="blue.300" alignItems="center" justifyContent="center" fontWeight="bold">
-                                {p.name?.charAt(0) || "P"}
-                              </Flex>
-                              <Box>
-                                <Text fontSize="xs" fontWeight="bold" color="white">
-                                  {p.name}
-                                </Text>
-                                <Text fontSize="10px" color="gray.400">
-                                  {p.phone}
-                                </Text>
-                              </Box>
-                            </HStack>
-                            <Badge colorScheme={p.is_available ? "green" : "gray"} fontSize="10px">
-                              {p.is_available ? "Available" : "Busy"}
-                            </Badge>
-                          </Flex>
-                        ))}
+                        {providers.length === 0 ? (
+                          <Text color="gray.400" fontSize="xs" textAlign="center" py="4">
+                            No service providers configured.
+                          </Text>
+                        ) : (
+                          providers.slice(0, 4).map((p) => (
+                            <Flex
+                              key={p.id}
+                              p="3"
+                              borderRadius="lg"
+                              bg="#1E293B"
+                              justifyContent="space-between"
+                              alignItems="center"
+                            >
+                              <HStack gap="3">
+                                <Flex w="36px" h="36px" borderRadius="full" bg="blue.900" color="blue.300" alignItems="center" justifyContent="center" fontWeight="bold">
+                                  {p.name?.charAt(0) || "P"}
+                                </Flex>
+                                <Box>
+                                  <Text fontSize="xs" fontWeight="bold" color="white">
+                                    {p.name}
+                                  </Text>
+                                  <Text fontSize="10px" color="gray.400">
+                                    {p.phone}
+                                  </Text>
+                                </Box>
+                              </HStack>
+                              <Badge colorScheme={p.isOnline ?? p.is_available ? "green" : "gray"} fontSize="10px">
+                                {p.isOnline ?? p.is_available ? "Available" : "Busy"}
+                              </Badge>
+                            </Flex>
+                          ))
+                        )}
                       </VStack>
                     </Card.Root>
                   </Grid>
@@ -686,79 +736,94 @@ export default function AdminDashboard() {
                   {/* Bookings Table */}
                   <Card.Root bg="#0F172A" borderColor="whiteAlpha.100" borderWidth="1px" borderRadius="xl">
                     <Box overflowX="auto" p="4">
-                      <Table.Root size="md" variant="outline" colorScheme="whiteAlpha">
-                        <Table.Header>
-                          <Table.Row borderColor="whiteAlpha.100">
-                            <Table.ColumnHeader color="gray.400">Booking ID</Table.ColumnHeader>
-                            <Table.ColumnHeader color="gray.400">Customer Details</Table.ColumnHeader>
-                            <Table.ColumnHeader color="gray.400">Service Info</Table.ColumnHeader>
-                            <Table.ColumnHeader color="gray.400">Assigned Provider</Table.ColumnHeader>
-                            <Table.ColumnHeader color="gray.400">Amount</Table.ColumnHeader>
-                            <Table.ColumnHeader color="gray.400">Status</Table.ColumnHeader>
-                            <Table.ColumnHeader color="gray.400">Action</Table.ColumnHeader>
-                          </Table.Row>
-                        </Table.Header>
-                        <Table.Body>
-                          {filteredBookings.map((b) => {
-                            const st = getStatusColor(b.status);
-                            return (
-                              <Table.Row key={b.id} _hover={{ bg: "whiteAlpha.50" }} borderColor="whiteAlpha.100">
-                                <Table.Cell fontWeight="bold" color="blue.300" fontSize="xs">
-                                  #{b.id?.substring(0, 8)}...
-                                </Table.Cell>
-                                <Table.Cell>
-                                  <Text fontSize="xs" fontWeight="bold" color="white">
-                                    {b.users?.name || "Customer"}
-                                  </Text>
-                                  <Text fontSize="10px" color="gray.400">
-                                    {b.users?.phone || b.users?.email || "N/A"}
-                                  </Text>
-                                </Table.Cell>
-                                <Table.Cell>
-                                  <Text fontSize="xs" color="gray.200">
-                                    {b.services?.name || "Full Washing"}
-                                  </Text>
-                                  <Text fontSize="10px" color="gray.400">
-                                    Slot: {b.booking_slot || b.time_slot || "10:00 AM"}
-                                  </Text>
-                                </Table.Cell>
-                                <Table.Cell>
-                                  {b.providers?.name ? (
-                                    <Badge colorScheme="teal" fontSize="xs">
-                                      {b.providers.name}
-                                    </Badge>
-                                  ) : (
-                                    <Text fontSize="xs" color="yellow.400">
-                                      Unassigned
+                      {filteredBookings.length === 0 ? (
+                        <Flex p="8" justifyContent="center" alignItems="center" flexDir="column" gap="3">
+                          <Text color="gray.400" fontSize="sm">
+                            No bookings match your search query.
+                          </Text>
+                        </Flex>
+                      ) : (
+                        <Table.Root size="md" variant="outline" colorScheme="whiteAlpha">
+                          <Table.Header>
+                            <Table.Row borderColor="whiteAlpha.100">
+                              <Table.ColumnHeader color="gray.400">Booking ID</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.400">Customer Details</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.400">Service Info</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.400">Assigned Provider</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.400">Amount</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.400">Status</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.400">Action</Table.ColumnHeader>
+                            </Table.Row>
+                          </Table.Header>
+                          <Table.Body>
+                            {filteredBookings.map((b) => {
+                              const st = getStatusColor(b.status);
+                              const custName = b.user?.name || b.users?.name || "Customer";
+                              const custPhone = b.user?.phone || b.users?.phone || b.user?.email || b.users?.email || "N/A";
+                              const serviceName = b.services?.name || b.service_name || "Full Washing";
+                              const timeSlot = b.scheduleTime || b.booking_slot || b.time_slot || "10:00 AM";
+                              const price = b.total || b.subtotal || b.total_amount || 499;
+                              const providerName = b.provider?.name || b.providers?.name;
+
+                              return (
+                                <Table.Row key={b.id} _hover={{ bg: "whiteAlpha.50" }} borderColor="whiteAlpha.100">
+                                  <Table.Cell fontWeight="bold" color="blue.300" fontSize="xs">
+                                    #{b.id?.substring(0, 8)}...
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <Text fontSize="xs" fontWeight="bold" color="white">
+                                      {custName}
                                     </Text>
-                                  )}
-                                </Table.Cell>
-                                <Table.Cell fontWeight="bold" color="emerald.400" fontSize="xs">
-                                  ₹{b.total_amount || 499}
-                                </Table.Cell>
-                                <Table.Cell>
-                                  <Badge bg={st.bg} color={st.color} border="1px solid" borderColor={st.border} px="2.5" py="1" borderRadius="md" textTransform="capitalize" fontSize="xs">
-                                    {b.status || "pending"}
-                                  </Badge>
-                                </Table.Cell>
-                                <Table.Cell>
-                                  <Button
-                                    size="xs"
-                                    colorScheme="purple"
-                                    variant="subtle"
-                                    onClick={() => {
-                                      setSelectedBookingId(b.id);
-                                      setShowAssignModal(true);
-                                    }}
-                                  >
-                                    Assign Provider
-                                  </Button>
-                                </Table.Cell>
-                              </Table.Row>
-                            );
-                          })}
-                        </Table.Body>
-                      </Table.Root>
+                                    <Text fontSize="10px" color="gray.400">
+                                      {custPhone}
+                                    </Text>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <Text fontSize="xs" color="gray.200">
+                                      {serviceName}
+                                    </Text>
+                                    <Text fontSize="10px" color="gray.400">
+                                      Slot: {timeSlot}
+                                    </Text>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    {providerName ? (
+                                      <Badge colorScheme="teal" fontSize="xs">
+                                        {providerName}
+                                      </Badge>
+                                    ) : (
+                                      <Text fontSize="xs" color="yellow.400">
+                                        Unassigned
+                                      </Text>
+                                    )}
+                                  </Table.Cell>
+                                  <Table.Cell fontWeight="bold" color="emerald.400" fontSize="xs">
+                                    ₹{price}
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <Badge bg={st.bg} color={st.color} border="1px solid" borderColor={st.border} px="2.5" py="1" borderRadius="md" textTransform="capitalize" fontSize="xs">
+                                      {b.status || "pending"}
+                                    </Badge>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <Button
+                                      size="xs"
+                                      colorScheme="purple"
+                                      variant="subtle"
+                                      onClick={() => {
+                                        setSelectedBookingId(b.id);
+                                        setShowAssignModal(true);
+                                      }}
+                                    >
+                                      Assign Provider
+                                    </Button>
+                                  </Table.Cell>
+                                </Table.Row>
+                              );
+                            })}
+                          </Table.Body>
+                        </Table.Root>
+                      )}
                     </Box>
                   </Card.Root>
                 </Stack>
@@ -773,40 +838,46 @@ export default function AdminDashboard() {
 
                   <Card.Root bg="#0F172A" borderColor="whiteAlpha.100" borderWidth="1px" borderRadius="xl">
                     <Box overflowX="auto" p="4">
-                      <Table.Root size="md" variant="outline">
-                        <Table.Header>
-                          <Table.Row borderColor="whiteAlpha.100">
-                            <Table.ColumnHeader color="gray.400">Name</Table.ColumnHeader>
-                            <Table.ColumnHeader color="gray.400">Email</Table.ColumnHeader>
-                            <Table.ColumnHeader color="gray.400">Phone</Table.ColumnHeader>
-                            <Table.ColumnHeader color="gray.400">Role</Table.ColumnHeader>
-                            <Table.ColumnHeader color="gray.400">Created At</Table.ColumnHeader>
-                          </Table.Row>
-                        </Table.Header>
-                        <Table.Body>
-                          {users.map((u) => (
-                            <Table.Row key={u.id} _hover={{ bg: "whiteAlpha.50" }} borderColor="whiteAlpha.100">
-                              <Table.Cell fontWeight="bold" color="white" fontSize="xs">
-                                {u.name}
-                              </Table.Cell>
-                              <Table.Cell color="gray.300" fontSize="xs">
-                                {u.email}
-                              </Table.Cell>
-                              <Table.Cell color="gray.300" fontSize="xs">
-                                {u.phone || "N/A"}
-                              </Table.Cell>
-                              <Table.Cell>
-                                <Badge colorScheme={u.role === "admin" ? "purple" : "blue"} fontSize="xs">
-                                  {u.role || "user"}
-                                </Badge>
-                              </Table.Cell>
-                              <Table.Cell color="gray.400" fontSize="xs">
-                                {u.created_at ? new Date(u.created_at).toLocaleDateString() : "Recent"}
-                              </Table.Cell>
+                      {users.length === 0 ? (
+                        <Flex p="6" justifyContent="center" alignItems="center">
+                          <Text color="gray.400" fontSize="xs">No users registered yet.</Text>
+                        </Flex>
+                      ) : (
+                        <Table.Root size="md" variant="outline">
+                          <Table.Header>
+                            <Table.Row borderColor="whiteAlpha.100">
+                              <Table.ColumnHeader color="gray.400">Name</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.400">Email</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.400">Phone</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.400">Role</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.400">Created At</Table.ColumnHeader>
                             </Table.Row>
-                          ))}
-                        </Table.Body>
-                      </Table.Root>
+                          </Table.Header>
+                          <Table.Body>
+                            {users.map((u) => (
+                              <Table.Row key={u.id} _hover={{ bg: "whiteAlpha.50" }} borderColor="whiteAlpha.100">
+                                <Table.Cell fontWeight="bold" color="white" fontSize="xs">
+                                  {u.name}
+                                </Table.Cell>
+                                <Table.Cell color="gray.300" fontSize="xs">
+                                  {u.email}
+                                </Table.Cell>
+                                <Table.Cell color="gray.300" fontSize="xs">
+                                  {u.phone || "N/A"}
+                                </Table.Cell>
+                                <Table.Cell>
+                                  <Badge colorScheme={u.role === "admin" ? "purple" : "blue"} fontSize="xs">
+                                    {u.role || "user"}
+                                  </Badge>
+                                </Table.Cell>
+                                <Table.Cell color="gray.400" fontSize="xs">
+                                  {u.createdAt || u.created_at ? new Date(u.createdAt || u.created_at).toLocaleDateString() : "Recent"}
+                                </Table.Cell>
+                              </Table.Row>
+                            ))}
+                          </Table.Body>
+                        </Table.Root>
+                      )}
                     </Box>
                   </Card.Root>
                 </Stack>
@@ -819,45 +890,51 @@ export default function AdminDashboard() {
                     Service Providers ({providers.length})
                   </Heading>
 
-                  <Grid templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap="5">
-                    {providers.map((p) => (
-                      <Card.Root key={p.id} bg="#0F172A" borderColor="whiteAlpha.100" borderWidth="1px" borderRadius="xl" p="5">
-                        <Flex justifyContent="space-between" alignItems="flex-start" mb="4">
-                          <HStack gap="3">
-                            <Flex w="44px" h="44px" borderRadius="xl" bg="teal.900" color="teal.300" alignItems="center" justifyContent="center" fontWeight="bold">
-                              {p.name?.charAt(0) || "P"}
-                            </Flex>
-                            <Box>
-                              <Heading size="xs" color="white">
-                                {p.name}
-                              </Heading>
-                              <Text fontSize="xs" color="gray.400">
-                                {p.phone}
-                              </Text>
-                            </Box>
-                          </HStack>
-                          <Badge colorScheme={p.is_available ? "green" : "red"} fontSize="xs">
-                            {p.is_available ? "Active" : "Busy"}
-                          </Badge>
-                        </Flex>
+                  {providers.length === 0 ? (
+                    <Flex p="8" justifyContent="center" alignItems="center">
+                      <Text color="gray.400" fontSize="sm">No providers found in database.</Text>
+                    </Flex>
+                  ) : (
+                    <Grid templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap="5">
+                      {providers.map((p) => (
+                        <Card.Root key={p.id} bg="#0F172A" borderColor="whiteAlpha.100" borderWidth="1px" borderRadius="xl" p="5">
+                          <Flex justifyContent="space-between" alignItems="flex-start" mb="4">
+                            <HStack gap="3">
+                              <Flex w="44px" h="44px" borderRadius="xl" bg="teal.900" color="teal.300" alignItems="center" justifyContent="center" fontWeight="bold">
+                                {p.name?.charAt(0) || "P"}
+                              </Flex>
+                              <Box>
+                                <Heading size="xs" color="white">
+                                  {p.name}
+                                </Heading>
+                                <Text fontSize="xs" color="gray.400">
+                                  {p.phone}
+                                </Text>
+                              </Box>
+                            </HStack>
+                            <Badge colorScheme={p.isOnline ?? p.is_available ? "green" : "red"} fontSize="xs">
+                              {p.isOnline ?? p.is_available ? "Active" : "Busy"}
+                            </Badge>
+                          </Flex>
 
-                        <VStack align="stretch" gap="2" fontSize="xs" color="gray.300">
-                          <Flex justifyContent="space-between">
-                            <Text color="gray.400">Rating:</Text>
-                            <Text fontWeight="bold" color="amber.400">
-                              ⭐ {p.rating || "4.8"}
-                            </Text>
-                          </Flex>
-                          <Flex justifyContent="space-between">
-                            <Text color="gray.400">Jobs Completed:</Text>
-                            <Text fontWeight="bold" color="white">
-                              {p.total_jobs || 12}
-                            </Text>
-                          </Flex>
-                        </VStack>
-                      </Card.Root>
-                    ))}
-                  </Grid>
+                          <VStack align="stretch" gap="2" fontSize="xs" color="gray.300">
+                            <Flex justifyContent="space-between">
+                              <Text color="gray.400">Rating:</Text>
+                              <Text fontWeight="bold" color="amber.400">
+                                ⭐ {p.rating || "4.8"}
+                              </Text>
+                            </Flex>
+                            <Flex justifyContent="space-between">
+                              <Text color="gray.400">Jobs Completed:</Text>
+                              <Text fontWeight="bold" color="white">
+                                {p.totalJobs || p.total_jobs || 12}
+                              </Text>
+                            </Flex>
+                          </VStack>
+                        </Card.Root>
+                      ))}
+                    </Grid>
+                  )}
                 </Stack>
               )}
 
@@ -895,10 +972,10 @@ export default function AdminDashboard() {
 
                         <Flex justifyContent="space-between" alignItems="center">
                           <Text fontSize="lg" fontWeight="bold" color="emerald.400">
-                            ₹{s.price}
+                            ₹{s.basePrice || s.price}
                           </Text>
                           <Text fontSize="xs" color="gray.400">
-                            ⏱️ {s.duration || "45 mins"}
+                            ⏱️ {s.durationMinutes ? `${s.durationMinutes} mins` : s.duration || "45 mins"}
                           </Text>
                         </Flex>
                       </Card.Root>
@@ -921,11 +998,11 @@ export default function AdminDashboard() {
                           <HStack gap="2">
                             <Clock size={16} color="#3B82F6" />
                             <Text fontSize="sm" fontWeight="bold" color="white">
-                              {s.slot_time || s.time}
+                              {s.slotTime || s.slot_time || s.time}
                             </Text>
                           </HStack>
-                          <Badge colorScheme={s.is_available ? "green" : "gray"} fontSize="xs">
-                            {s.is_available ? "Open" : "Booked"}
+                          <Badge colorScheme={s.isActive ?? s.is_available ? "green" : "gray"} fontSize="xs">
+                            {s.isActive ?? s.is_available ? "Open" : "Booked"}
                           </Badge>
                         </Flex>
                       </Card.Root>
@@ -950,10 +1027,10 @@ export default function AdminDashboard() {
                           </Flex>
                           <Box>
                             <Heading size="xs" color="white">
-                              {v.make} {v.model}
+                              {v.brand} {v.model}
                             </Heading>
                             <Text fontSize="xs" color="gray.400">
-                              Type: {v.type || "Sedan"}
+                              Type: {v.category || v.type || "Sedan"} ({v.bodyType || "Car"})
                             </Text>
                           </Box>
                         </HStack>
@@ -1060,8 +1137,8 @@ export default function AdminDashboard() {
                   <Input
                     type="number"
                     required
-                    value={newService.price}
-                    onChange={(e) => setNewService({ ...newService, price: Number(e.target.value) })}
+                    value={newService.basePrice}
+                    onChange={(e) => setNewService({ ...newService, basePrice: Number(e.target.value) })}
                     bg="#1E293B"
                   />
                 </Box>
