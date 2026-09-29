@@ -3,7 +3,21 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET(request: Request) {
   try {
-    const { data, error } = await supabaseAdmin.from("services").select("*").order("created_at", { ascending: true });
+    const { searchParams } = new URL(request.url);
+    const vehicleType = searchParams.get("vehicleType");
+    const bodyType = searchParams.get("bodyType");
+
+    let query = supabaseAdmin.from("services").select("*").order("created_at", { ascending: true });
+
+    if (vehicleType && vehicleType !== "all") {
+      query = query.or(`vehicle_type.ilike.%${vehicleType}%,category.ilike.%${vehicleType}%`);
+    }
+
+    if (bodyType && bodyType !== "all") {
+      query = query.ilike("body_type", `%${bodyType}%`);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -13,7 +27,9 @@ export async function GET(request: Request) {
       id: s.id,
       name: s.name,
       description: s.description,
-      category: s.category,
+      category: s.category || "car_wash",
+      vehicleType: s.vehicle_type || (s.category?.includes("2w") || s.category?.includes("bike") ? "2W" : "4W"),
+      bodyType: s.body_type || "All",
       basePrice: s.base_price,
       popular: s.popular,
       durationMinutes: s.duration_minutes || 45,
@@ -30,21 +46,24 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, category, basePrice, durationMinutes, popular, isActive } = body;
+    const { name, description, category, vehicleType, bodyType, basePrice, durationMinutes, popular, isActive } = body;
 
     if (!name || basePrice === undefined) {
       return NextResponse.json({ error: "Name and basePrice are required" }, { status: 400 });
     }
 
-    const newService = {
+    const newService: any = {
       name,
       description: description || "",
-      category: category || "package",
+      category: category || (vehicleType === "2W" ? "2w_wash" : "4w_wash"),
       base_price: parseFloat(basePrice),
       duration_minutes: durationMinutes ? parseInt(durationMinutes) : 45,
       popular: popular ?? false,
       is_active: isActive ?? true,
     };
+
+    if (vehicleType) newService.vehicle_type = vehicleType;
+    if (bodyType) newService.body_type = bodyType;
 
     const { data, error } = await supabaseAdmin
       .from("services")
@@ -65,7 +84,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, name, description, category, basePrice, durationMinutes, popular, isActive } = body;
+    const { id, name, description, category, vehicleType, bodyType, basePrice, durationMinutes, popular, isActive } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Service ID is required" }, { status: 400 });
@@ -75,6 +94,8 @@ export async function PUT(request: Request) {
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
     if (category !== undefined) updates.category = category;
+    if (vehicleType !== undefined) updates.vehicle_type = vehicleType;
+    if (bodyType !== undefined) updates.body_type = bodyType;
     if (basePrice !== undefined) updates.base_price = parseFloat(basePrice);
     if (durationMinutes !== undefined) updates.duration_minutes = parseInt(durationMinutes);
     if (popular !== undefined) updates.popular = popular;
