@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error || !data || data.length === 0) {
+    if (error) {
       return NextResponse.json({
         bookings: DEFAULT_BOOKINGS,
         pagination: { page: 1, limit, totalItems: DEFAULT_BOOKINGS.length, totalPages: 1 },
@@ -97,13 +97,15 @@ export async function GET(request: Request) {
       updatedAt: b.updated_at,
     }));
 
+    const totalCount = count ?? bookings.length;
+
     return NextResponse.json({
-      bookings: bookings.length > 0 ? bookings : DEFAULT_BOOKINGS,
+      bookings,
       pagination: {
         page,
         limit,
-        totalItems: count || DEFAULT_BOOKINGS.length,
-        totalPages: Math.ceil((count || DEFAULT_BOOKINGS.length) / limit),
+        totalItems: totalCount,
+        totalPages: Math.ceil(totalCount / limit) || 1,
       },
     });
   } catch (err: any) {

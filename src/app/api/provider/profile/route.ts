@@ -21,22 +21,7 @@ export async function GET(request: Request) {
     }
 
     if (!data) {
-      // Fallback mock profile if providers table is not yet populated
-      return NextResponse.json({
-        provider: {
-          id: providerId,
-          name: "Serviceman Partner",
-          phone: "+919876543210",
-          email: "serviceman@shrawasti.com",
-          rating: 4.85,
-          totalJobs: 142,
-          isOnline: true,
-          status: "active",
-          currentLat: 26.8467,
-          currentLng: 80.9462,
-          createdAt: new Date().toISOString(),
-        },
-      });
+      return NextResponse.json({ error: "Provider not found" }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -87,18 +72,7 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      // If table doesn't exist yet, return success mock
-      return NextResponse.json({
-        provider: {
-          id,
-          name,
-          phone,
-          email,
-          profileImage,
-          isOnline: isOnline ?? true,
-          updatedAt: new Date().toISOString(),
-        },
-      });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({

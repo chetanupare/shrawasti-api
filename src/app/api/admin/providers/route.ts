@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await query.order("created_at", { ascending: false });
 
-    if (error || !data || data.length === 0) {
+    if (error) {
       return NextResponse.json({ providers: DEFAULT_PROVIDERS });
     }
 
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
       createdAt: p.created_at,
     }));
 
-    return NextResponse.json({ providers: providers.length > 0 ? providers : DEFAULT_PROVIDERS });
+    return NextResponse.json({ providers });
   } catch (err: any) {
     return NextResponse.json({ providers: DEFAULT_PROVIDERS });
   }
@@ -100,19 +100,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({
-        provider: {
-          id: `prov_${Date.now()}`,
-          name,
-          phone,
-          email,
-          status: "active",
-          isOnline: true,
-          rating: 5.0,
-          totalJobs: 0,
-          createdAt: new Date().toISOString(),
-        },
-      });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ provider: data }, { status: 201 });
@@ -146,7 +134,7 @@ export async function PUT(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ success: true, updatedId: id, fallback: true });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, provider: data });
@@ -173,7 +161,7 @@ export async function DELETE(request: Request) {
     const { error } = await supabaseAdmin.from("providers").delete().eq("id", id);
 
     if (error) {
-      return NextResponse.json({ success: true, deletedId: id, fallback: true });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, deletedId: id });

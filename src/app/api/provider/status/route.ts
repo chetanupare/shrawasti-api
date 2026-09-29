@@ -27,14 +27,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (error) {
-      // Fallback response if table not yet migrated
-      return NextResponse.json({
-        success: true,
-        providerId,
-        isOnline,
-        status: updates.status,
-        updatedAt: updates.updated_at,
-      });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({

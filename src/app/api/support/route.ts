@@ -17,8 +17,7 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      // Fallback empty list if table not created
-      return NextResponse.json({ tickets: [] });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ tickets: data || [] });
@@ -56,16 +55,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({
-        ticket: {
-          id: `ticket_${Date.now()}`,
-          userId,
-          subject,
-          message,
-          status: "open",
-          createdAt: new Date().toISOString(),
-        },
-      });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ ticket: data }, { status: 201 });

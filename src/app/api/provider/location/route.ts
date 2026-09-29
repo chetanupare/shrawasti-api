@@ -27,13 +27,7 @@ export async function POST(request: Request) {
       .eq("id", providerId);
 
     if (error) {
-      // Return success mock if table is not yet created
-      return NextResponse.json({
-        success: true,
-        providerId,
-        location: { latitude, longitude, heading, speed },
-        timestamp: locationUpdate.updated_at,
-      });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -62,12 +56,12 @@ export async function GET(request: Request) {
       .eq("id", providerId)
       .maybeSingle();
 
-    if (error || !data) {
-      return NextResponse.json({
-        providerId,
-        location: { latitude: 26.8467, longitude: 80.9462, heading: 0, speed: 0 },
-        timestamp: new Date().toISOString(),
-      });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: "Provider location not found" }, { status: 404 });
     }
 
     return NextResponse.json({

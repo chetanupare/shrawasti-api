@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await query.order("brand", { ascending: true });
 
-    if (error || !data || data.length === 0) {
+    if (error) {
       return NextResponse.json({ catalog: DEFAULT_VEHICLES });
     }
 
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
       createdAt: c.created_at,
     }));
 
-    return NextResponse.json({ catalog: catalog.length > 0 ? catalog : DEFAULT_VEHICLES });
+    return NextResponse.json({ catalog });
   } catch (err: any) {
     return NextResponse.json({ catalog: DEFAULT_VEHICLES });
   }
@@ -79,16 +79,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({
-        vehicle: {
-          id: `veh_${Date.now()}`,
-          ...newItem,
-          bodyType,
-          brandIcon,
-          modelImage,
-          createdAt: new Date().toISOString(),
-        },
-      });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ vehicle: data }, { status: 201 });
@@ -122,7 +113,7 @@ export async function PUT(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ success: true, updatedId: id, fallback: true });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, vehicle: data });
@@ -149,7 +140,7 @@ export async function DELETE(request: Request) {
     const { error } = await supabaseAdmin.from("vehicle_catalog").delete().eq("id", id);
 
     if (error) {
-      return NextResponse.json({ success: true, deletedId: id, fallback: true });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, deletedId: id });

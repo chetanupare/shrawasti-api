@@ -13,11 +13,11 @@ export async function GET() {
   try {
     const { data, error } = await supabaseAdmin.from("booking_slots").select("*").order("id", { ascending: true });
 
-    if (error || !data || data.length === 0) {
+    if (error) {
       return NextResponse.json({ slots: DEFAULT_SLOTS });
     }
 
-    const slots = data.map((s: any) => ({
+    const slots = (data || []).map((s: any) => ({
       id: s.id,
       slotTime: s.slot_time || s.slotTime,
       maxCapacity: s.max_capacity || s.maxCapacity || 10,
@@ -52,14 +52,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({
-        slot: {
-          id: `slot_${Date.now()}`,
-          slotTime,
-          maxCapacity: maxCapacity ? parseInt(maxCapacity) : 10,
-          isActive: isActive ?? true,
-        },
-      });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ slot: data }, { status: 201 });
@@ -90,7 +83,7 @@ export async function PUT(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ success: true, updatedId: id, fallback: true });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, slot: data });
@@ -117,7 +110,7 @@ export async function DELETE(request: Request) {
     const { error } = await supabaseAdmin.from("booking_slots").delete().eq("id", id);
 
     if (error) {
-      return NextResponse.json({ success: true, deletedId: id, fallback: true });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, deletedId: id });

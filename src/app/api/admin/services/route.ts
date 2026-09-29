@@ -58,7 +58,7 @@ export async function GET(request: Request) {
   try {
     const { data, error } = await supabaseAdmin.from("services").select("*").order("created_at", { ascending: true });
 
-    if (error || !data || data.length === 0) {
+    if (error) {
       return NextResponse.json({ services: DEFAULT_SERVICES });
     }
 
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
       createdAt: s.created_at,
     }));
 
-    return NextResponse.json({ services: services.length > 0 ? services : DEFAULT_SERVICES });
+    return NextResponse.json({ services });
   } catch (err: any) {
     return NextResponse.json({ services: DEFAULT_SERVICES });
   }
@@ -106,15 +106,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({
-        service: {
-          id: `srv_${Date.now()}`,
-          ...newService,
-          basePrice: parseFloat(basePrice),
-          durationMinutes: durationMinutes ? parseInt(durationMinutes) : 45,
-          createdAt: new Date().toISOString(),
-        },
-      });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ service: data }, { status: 201 });
@@ -149,7 +141,7 @@ export async function PUT(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ success: true, updatedId: id, fallback: true });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, service: data });
@@ -176,7 +168,7 @@ export async function DELETE(request: Request) {
     const { error } = await supabaseAdmin.from("services").delete().eq("id", id);
 
     if (error) {
-      return NextResponse.json({ success: true, deletedId: id, fallback: true });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, deletedId: id });

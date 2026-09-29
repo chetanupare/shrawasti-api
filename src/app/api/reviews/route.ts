@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ reviews: [] });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ reviews: data || [] });
@@ -51,17 +51,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({
-        review: {
-          id: `rev_${Date.now()}`,
-          bookingId,
-          userId,
-          providerId,
-          rating,
-          comment,
-          createdAt: new Date().toISOString(),
-        },
-      });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ review: data }, { status: 201 });

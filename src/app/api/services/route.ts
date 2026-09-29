@@ -67,7 +67,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await query.order("created_at", { ascending: true });
 
-    if (error || !data || data.length === 0) {
+    if (error) {
       return NextResponse.json({ services: DEFAULT_SERVICES });
     }
 
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
       createdAt: s.created_at,
     }));
 
-    return NextResponse.json({ services: services.length > 0 ? services : DEFAULT_SERVICES });
+    return NextResponse.json({ services });
   } catch (err: any) {
     return NextResponse.json({ services: DEFAULT_SERVICES });
   }

@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+const DEFAULT_COUPONS = [
+  {
+    code: "WELCOME10",
+    discountPercentage: 10,
+    maxDiscount: 100,
+    minOrderAmount: 299,
+    description: "Get 10% off on your first vehicle wash",
+  },
+  {
+    code: "SHRAWASTI50",
+    discountFlat: 50,
+    minOrderAmount: 499,
+    description: "Flat ₹50 off on orders above ₹499",
+  },
+];
+
 export async function GET() {
   try {
     const { data, error } = await supabase
@@ -8,28 +24,11 @@ export async function GET() {
       .select("*")
       .eq("is_active", true);
 
-    if (error || !data || data.length === 0) {
-      // Return default promotional coupons
-      return NextResponse.json({
-        coupons: [
-          {
-            code: "WELCOME10",
-            discountPercentage: 10,
-            maxDiscount: 100,
-            minOrderAmount: 299,
-            description: "Get 10% off on your first vehicle wash",
-          },
-          {
-            code: "SHRAWASTI50",
-            discountFlat: 50,
-            minOrderAmount: 499,
-            description: "Flat ₹50 off on orders above ₹499",
-          },
-        ],
-      });
+    if (error) {
+      return NextResponse.json({ coupons: DEFAULT_COUPONS });
     }
 
-    return NextResponse.json({ coupons: data });
+    return NextResponse.json({ coupons: data && data.length > 0 ? data : DEFAULT_COUPONS });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -46,11 +45,33 @@ export async function POST(request: Request) {
 
     const cleanCode = code.trim().toUpperCase();
 
+    // Check DB first for dynamic coupon
+    const { data: dbCoupon } = await supabase
+      .from("coupons")
+      .select("*")
+      .eq("code", cleanCode)
+      .eq("is_active", true)
+      .maybeSingle();
+
     let discount = 0;
     let valid = false;
     let message = "";
 
-    if (cleanCode === "WELCOME10") {
+    if (dbCoupon) {
+      const minOrder = dbCoupon.min_order_amount || 0;
+      if (subtotal >= minOrder) {
+        if (dbCoupon.discount_percentage) {
+          const calc = Math.round((subtotal * dbCoupon.discount_percentage) / 100);
+          discount = dbCoupon.max_discount ? Math.min(calc, dbCoupon.max_discount) : calc;
+        } else if (dbCoupon.discount_flat) {
+          discount = dbCoupon.discount_flat;
+        }
+        valid = true;
+        message = dbCoupon.description || `Coupon ${cleanCode} applied successfully!`;
+      } else {
+        message = `Minimum order amount of ₹${minOrder} required for ${cleanCode}`;
+      }
+    } else if (cleanCode === "WELCOME10") {
       if (subtotal >= 299) {
         discount = Math.min(Math.round(subtotal * 0.1), 100);
         valid = true;
