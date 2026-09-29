@@ -1095,10 +1095,14 @@ export default function AdminDashboard() {
                             key={st}
                             size="xs"
                             onClick={() => setStatusFilter(st)}
-                            variant={statusFilter === st ? "solid" : "outline"}
-                            colorScheme={statusFilter === st ? "blue" : "gray"}
+                            bg={statusFilter === st ? "#2563EB" : "#1E293B"}
+                            color={statusFilter === st ? "#FFFFFF" : "#E2E8F0"}
+                            border="1px solid"
+                            borderColor={statusFilter === st ? "#3B82F6" : "rgba(255, 255, 255, 0.2)"}
+                            _hover={{ bg: statusFilter === st ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                             borderRadius="lg"
                             textTransform="capitalize"
+                            fontWeight={statusFilter === st ? "bold" : "normal"}
                           >
                             {st}
                           </Button>
@@ -1392,18 +1396,18 @@ export default function AdminDashboard() {
                       </Text>
 
                       <HStack gap="1.5">
-                        {[
-                          { id: "all", label: "All Vehicles" },
-                          { id: "4W", label: "4W (Car)" },
-                          { id: "2W", label: "2W (Bike)" },
-                        ].map((v) => (
+                        {[{ id: "all", label: "All Vehicles" }, { id: "4W", label: "4W (Car)" }, { id: "2W", label: "2W (Bike)" }].map((v) => (
                           <Button
                             key={v.id}
                             size="xs"
                             onClick={() => setServiceVehicleFilter(v.id)}
-                            variant={serviceVehicleFilter === v.id ? "solid" : "outline"}
-                            colorScheme={serviceVehicleFilter === v.id ? "blue" : "gray"}
+                            bg={serviceVehicleFilter === v.id ? "#2563EB" : "#1E293B"}
+                            color={serviceVehicleFilter === v.id ? "#FFFFFF" : "#E2E8F0"}
+                            border="1px solid"
+                            borderColor={serviceVehicleFilter === v.id ? "#3B82F6" : "rgba(255, 255, 255, 0.2)"}
+                            _hover={{ bg: serviceVehicleFilter === v.id ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                             borderRadius="lg"
+                            fontWeight={serviceVehicleFilter === v.id ? "bold" : "normal"}
                           >
                             {v.label}
                           </Button>
@@ -1421,10 +1425,14 @@ export default function AdminDashboard() {
                             key={bt}
                             size="xs"
                             onClick={() => setServiceBodyTypeFilter(bt)}
-                            variant={serviceBodyTypeFilter === bt ? "solid" : "outline"}
-                            colorScheme={serviceBodyTypeFilter === bt ? "purple" : "gray"}
+                            bg={serviceBodyTypeFilter === bt ? "#7C3AED" : "#1E293B"}
+                            color={serviceBodyTypeFilter === bt ? "#FFFFFF" : "#E2E8F0"}
+                            border="1px solid"
+                            borderColor={serviceBodyTypeFilter === bt ? "#8B5CF6" : "rgba(255, 255, 255, 0.2)"}
+                            _hover={{ bg: serviceBodyTypeFilter === bt ? "#6D28D9" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                             borderRadius="lg"
                             textTransform="capitalize"
+                            fontWeight={serviceBodyTypeFilter === bt ? "bold" : "normal"}
                           >
                             {bt}
                           </Button>
@@ -1623,18 +1631,18 @@ export default function AdminDashboard() {
                       </Text>
 
                       <HStack gap="1.5">
-                        {[
-                          { id: "all", label: "All Vehicles" },
-                          { id: "Car", label: "Car (4W)" },
-                          { id: "Bike", label: "Bike (2W)" },
-                        ].map((vc) => (
+                        {[{ id: "all", label: "All Vehicles" }, { id: "Car", label: "Car (4W)" }, { id: "Bike", label: "Bike (2W)" }].map((vc) => (
                           <Button
                             key={vc.id}
                             size="xs"
                             onClick={() => setVehicleCategoryFilter(vc.id)}
-                            variant={vehicleCategoryFilter === vc.id ? "solid" : "outline"}
-                            colorScheme={vehicleCategoryFilter === vc.id ? "purple" : "gray"}
+                            bg={vehicleCategoryFilter === vc.id ? "#7C3AED" : "#1E293B"}
+                            color={vehicleCategoryFilter === vc.id ? "#FFFFFF" : "#E2E8F0"}
+                            border="1px solid"
+                            borderColor={vehicleCategoryFilter === vc.id ? "#8B5CF6" : "rgba(255, 255, 255, 0.2)"}
+                            _hover={{ bg: vehicleCategoryFilter === vc.id ? "#6D28D9" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                             borderRadius="lg"
+                            fontWeight={vehicleCategoryFilter === vc.id ? "bold" : "normal"}
                           >
                             {vc.label}
                           </Button>
@@ -1652,10 +1660,14 @@ export default function AdminDashboard() {
                             key={bt}
                             size="xs"
                             onClick={() => setVehicleBodyTypeFilter(bt)}
-                            variant={vehicleBodyTypeFilter === bt ? "solid" : "outline"}
-                            colorScheme={vehicleBodyTypeFilter === bt ? "blue" : "gray"}
+                            bg={vehicleBodyTypeFilter === bt ? "#2563EB" : "#1E293B"}
+                            color={vehicleBodyTypeFilter === bt ? "#FFFFFF" : "#E2E8F0"}
+                            border="1px solid"
+                            borderColor={vehicleBodyTypeFilter === bt ? "#3B82F6" : "rgba(255, 255, 255, 0.2)"}
+                            _hover={{ bg: vehicleBodyTypeFilter === bt ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                             borderRadius="lg"
                             textTransform="capitalize"
+                            fontWeight={vehicleBodyTypeFilter === bt ? "bold" : "normal"}
                           >
                             {bt}
                           </Button>
@@ -1795,22 +1807,18 @@ export default function AdminDashboard() {
                         Quick Endpoint Selectors:
                       </Text>
                       <Flex gap="2" flexWrap="wrap">
-                        {[
-                          { label: "Bookings", ep: "/api/admin/bookings" },
-                          { label: "Services", ep: "/api/admin/services" },
-                          { label: "Providers", ep: "/api/admin/providers" },
-                          { label: "Users", ep: "/api/admin/users" },
-                          { label: "Slots", ep: "/api/admin/slots" },
-                          { label: "Vehicle Catalog", ep: "/api/admin/vehicles/catalog" },
-                          { label: "Stats", ep: "/api/admin/dashboard/stats" },
-                        ].map((preset) => (
+                        {[{ label: "Bookings", ep: "/api/admin/bookings" }, { label: "Services", ep: "/api/admin/services" }, { label: "Providers", ep: "/api/admin/providers" }, { label: "Users", ep: "/api/admin/users" }, { label: "Slots", ep: "/api/admin/slots" }, { label: "Vehicle Catalog", ep: "/api/admin/vehicles/catalog" }, { label: "Stats", ep: "/api/admin/dashboard/stats" }].map((preset) => (
                           <Button
                             key={preset.ep}
                             size="xs"
-                            variant={apiEndpoint === preset.ep ? "solid" : "outline"}
-                            colorScheme={apiEndpoint === preset.ep ? "blue" : "gray"}
                             onClick={() => setApiEndpoint(preset.ep)}
+                            bg={apiEndpoint === preset.ep ? "#2563EB" : "#1E293B"}
+                            color={apiEndpoint === preset.ep ? "#FFFFFF" : "#E2E8F0"}
+                            border="1px solid"
+                            borderColor={apiEndpoint === preset.ep ? "#3B82F6" : "rgba(255, 255, 255, 0.2)"}
+                            _hover={{ bg: apiEndpoint === preset.ep ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                             borderRadius="lg"
+                            fontWeight={apiEndpoint === preset.ep ? "bold" : "normal"}
                           >
                             {preset.label}
                           </Button>
@@ -1825,10 +1833,14 @@ export default function AdminDashboard() {
                             <Button
                               key={m}
                               size="sm"
-                              variant={apiMethod === m ? "solid" : "outline"}
-                              colorScheme={apiMethod === m ? "purple" : "gray"}
                               onClick={() => setApiMethod(m)}
+                              bg={apiMethod === m ? "#7C3AED" : "#1E293B"}
+                              color={apiMethod === m ? "#FFFFFF" : "#E2E8F0"}
+                              border="1px solid"
+                              borderColor={apiMethod === m ? "#8B5CF6" : "rgba(255, 255, 255, 0.2)"}
+                              _hover={{ bg: apiMethod === m ? "#6D28D9" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                               flex="1"
+                              fontWeight={apiMethod === m ? "bold" : "normal"}
                             >
                               {m}
                             </Button>
