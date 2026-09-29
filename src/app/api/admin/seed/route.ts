@@ -5,13 +5,15 @@ export async function POST() {
   try {
     const results: any = {};
 
-    // 1. Seed Services
+    // 1. Seed Services (2W Bike & 4W Car Catalogs)
     const initialServices = [
-      { name: "Basic Doorstep Wash", description: "Complete exterior pressure wash, micro-fiber wipe down, and window cleaning.", category: "package", base_price: 399, duration_minutes: 45, popular: false, is_active: true },
-      { name: "Premium Foam & Shine", description: "pH-neutral snow foam bath, high-gloss wax sealant, interior vacuum & dashboard polish.", category: "package", base_price: 699, duration_minutes: 60, popular: true, is_active: true },
-      { name: "Full Interior Deep Sanitization", description: "Steam extraction cleaning of seats, carpets, headliner, and anti-bacterial fogging.", category: "package", base_price: 999, duration_minutes: 90, popular: false, is_active: true },
-      { name: "Tyre & Bumper Dressing", description: "Deep tire degreasing and non-slung hydrophobic shine coating.", category: "add_on", base_price: 199, duration_minutes: 15, popular: false, is_active: true },
-      { name: "Engine Bay Detail", description: "Safe waterless engine compartment degreasing and protective rubber dressing.", category: "add_on", base_price: 299, duration_minutes: 20, popular: true, is_active: true },
+      { name: "2W Bike Quick Pressure Wash", description: "Complete two-wheeler pressure washing, chain lube, and mirror wipe.", category: "2w_wash", vehicle_type: "2W", body_type: "Scooter", base_price: 199, duration_minutes: 25, popular: true, is_active: true },
+      { name: "2W Premium Bike Foam & Polish", description: "Snow foam bath, Teflon tank polish, engine degreasing, and chain lube.", category: "2w_wash", vehicle_type: "2W", body_type: "Cruiser", base_price: 349, duration_minutes: 40, popular: true, is_active: true },
+      { name: "2W Ceramic Shield Coating", description: "Hydrophobic 9H ceramic coating for helmet visor, bike tank, and alloy wheels.", category: "2w_wash", vehicle_type: "2W", body_type: "Sports", base_price: 699, duration_minutes: 60, popular: false, is_active: true },
+      { name: "4W Hatchback Express Wash", description: "Complete exterior pressure wash, micro-fiber wipe down, and floor mat cleaning.", category: "4w_wash", vehicle_type: "4W", body_type: "Hatchback", base_price: 399, duration_minutes: 40, popular: false, is_active: true },
+      { name: "4W Sedan & SUV Premium Foam Bath", description: "pH-neutral snow foam bath, high-gloss wax sealant, interior vacuum & dashboard polish.", category: "4w_wash", vehicle_type: "4W", body_type: "SUV", base_price: 699, duration_minutes: 60, popular: true, is_active: true },
+      { name: "4W Full Interior Spa & Sanitization", description: "Steam extraction cleaning of seats, carpets, headliner, and anti-bacterial fogging.", category: "4w_wash", vehicle_type: "4W", body_type: "Sedan", base_price: 1199, duration_minutes: 90, popular: true, is_active: true },
+      { name: "4W Tyre & Underbody Degreasing", description: "High pressure underbody chassis wash and non-slung tire hydrophobic coating.", category: "add_on", vehicle_type: "4W", body_type: "SUV", base_price: 299, duration_minutes: 20, popular: false, is_active: true },
     ];
     const { data: services, error: sErr } = await supabaseAdmin.from("services").upsert(initialServices, { onConflict: "name" }).select();
     results.services = sErr ? sErr.message : services?.length;

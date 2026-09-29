@@ -500,11 +500,20 @@ export default function AdminDashboard() {
     const q = globalSearch.toLowerCase();
     const matchesQuery = !q || s.name?.toLowerCase().includes(q) || s.category?.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q);
     
-    const vType = (s.vehicleType || s.vehicle_type || (s.category?.includes("2w") || s.category?.includes("bike") ? "2W" : "4W")).toLowerCase();
-    const matchesVehicle = serviceVehicleFilter === "all" || vType.includes(serviceVehicleFilter.toLowerCase());
+    const rawVType = (s.vehicleType || s.vehicle_type || "").toUpperCase();
+    const rawCat = (s.category || "").toLowerCase();
+    const rawName = (s.name || "").toLowerCase();
+    const is2W = rawVType.includes("2W") || rawVType.includes("BIKE") || rawCat.includes("2w") || rawCat.includes("bike") || rawName.includes("2w") || rawName.includes("bike");
+
+    let matchesVehicle = true;
+    if (serviceVehicleFilter === "2W") {
+      matchesVehicle = is2W;
+    } else if (serviceVehicleFilter === "4W") {
+      matchesVehicle = !is2W;
+    }
 
     const bType = (s.bodyType || s.body_type || "all").toLowerCase();
-    const matchesBody = serviceBodyTypeFilter === "all" || bType.includes(serviceBodyTypeFilter.toLowerCase());
+    const matchesBody = serviceBodyTypeFilter === "all" || bType.includes(serviceBodyTypeFilter.toLowerCase()) || bType === "all";
 
     return matchesQuery && matchesVehicle && matchesBody;
   });
@@ -1184,14 +1193,16 @@ export default function AdminDashboard() {
                                           <Edit size={12} />
                                         </Button>
                                         <IconButton
-                                          size="xs"
-                                          colorScheme="red"
-                                          variant="ghost"
-                                          aria-label="Delete booking"
-                                          onClick={() => handleDeleteBooking(b.id)}
-                                        >
-                                          <Trash2 size={12} />
-                                        </IconButton>
+                                  size="xs"
+                                  variant="solid"
+                                  bg="#DC2626"
+                                  color="#FFFFFF"
+                                  _hover={{ bg: "#EF4444" }}
+                                  aria-label="Delete booking"
+                                  onClick={() => handleDeleteBooking(b.id)}
+                                >
+                                  <Trash2 size={14} color="#FFFFFF" />
+                                </IconButton>
                                       </HStack>
                                     </Table.Cell>
                                   </Table.Row>
@@ -1256,14 +1267,16 @@ export default function AdminDashboard() {
                                       <Edit size={12} />
                                     </Button>
                                     <IconButton
-                                      size="xs"
-                                      colorScheme="red"
-                                      variant="ghost"
-                                      aria-label="Delete user"
-                                      onClick={() => handleDeleteUser(u.id)}
-                                    >
-                                      <Trash2 size={12} />
-                                    </IconButton>
+                                  size="xs"
+                                  variant="solid"
+                                  bg="#DC2626"
+                                  color="#FFFFFF"
+                                  _hover={{ bg: "#EF4444" }}
+                                  aria-label="Delete user"
+                                  onClick={() => handleDeleteUser(u.id)}
+                                >
+                                  <Trash2 size={14} color="#FFFFFF" />
+                                </IconButton>
                                   </HStack>
                                 </Table.Cell>
                               </Table.Row>
@@ -1331,14 +1344,16 @@ export default function AdminDashboard() {
                               <Edit size={12} />
                             </Button>
                             <IconButton
-                              size="xs"
-                              colorScheme="red"
-                              variant="ghost"
-                              aria-label="Delete provider"
-                              onClick={() => handleDeleteProvider(p.id)}
-                            >
-                              <Trash2 size={12} />
-                            </IconButton>
+                                  size="xs"
+                                  variant="solid"
+                                  bg="#DC2626"
+                                  color="#FFFFFF"
+                                  _hover={{ bg: "#EF4444" }}
+                                  aria-label="Delete provider"
+                                  onClick={() => handleDeleteProvider(p.id)}
+                                >
+                                  <Trash2 size={14} color="#FFFFFF" />
+                                </IconButton>
                           </Flex>
                         </Card.Root>
                       ))}
@@ -1486,12 +1501,14 @@ export default function AdminDashboard() {
                                 </Button>
                                 <IconButton
                                   size="xs"
-                                  colorScheme="red"
-                                  variant="ghost"
+                                  variant="solid"
+                                  bg="#DC2626"
+                                  color="#FFFFFF"
+                                  _hover={{ bg: "#EF4444" }}
                                   aria-label="Delete service"
                                   onClick={() => handleDeleteService(s.id)}
                                 >
-                                  <Trash2 size={12} />
+                                  <Trash2 size={14} color="#FFFFFF" />
                                 </IconButton>
                               </Flex>
                             </Card.Root>
@@ -1557,14 +1574,16 @@ export default function AdminDashboard() {
                                 <Edit size={12} />
                               </IconButton>
                               <IconButton
-                                size="xs"
-                                colorScheme="red"
-                                variant="ghost"
-                                aria-label="Delete slot"
-                                onClick={() => handleDeleteSlot(s.id)}
-                              >
-                                <Trash2 size={12} />
-                              </IconButton>
+                                  size="xs"
+                                  variant="solid"
+                                  bg="#DC2626"
+                                  color="#FFFFFF"
+                                  _hover={{ bg: "#EF4444" }}
+                                  aria-label="Delete slot"
+                                  onClick={() => handleDeleteSlot(s.id)}
+                                >
+                                  <Trash2 size={14} color="#FFFFFF" />
+                                </IconButton>
                             </HStack>
                           </Flex>
                         </Card.Root>
@@ -1710,12 +1729,14 @@ export default function AdminDashboard() {
                                 </Button>
                                 <IconButton
                                   size="xs"
-                                  colorScheme="red"
-                                  variant="ghost"
+                                  variant="solid"
+                                  bg="#DC2626"
+                                  color="#FFFFFF"
+                                  _hover={{ bg: "#EF4444" }}
                                   aria-label="Delete vehicle"
                                   onClick={() => handleDeleteVehicle(v.id)}
                                 >
-                                  <Trash2 size={12} />
+                                  <Trash2 size={14} color="#FFFFFF" />
                                 </IconButton>
                               </Flex>
                             </Card.Root>
