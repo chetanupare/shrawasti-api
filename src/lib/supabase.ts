@@ -15,8 +15,13 @@ const targetAnonKey = supabaseAnonKey || "placeholder";
 // Client for standard operations (RLS enforced if user token provided)
 export const supabase = createClient(targetUrl, targetAnonKey);
 
-// Admin client for backend operations that bypass RLS when service role key is configured
-export const supabaseAdmin = supabaseServiceRoleKey
+const isValidServiceKey =
+  supabaseServiceRoleKey &&
+  !supabaseServiceRoleKey.includes("your_") &&
+  supabaseServiceRoleKey.trim().length > 20;
+
+// Admin client for backend operations that bypass RLS when valid service role key is configured
+export const supabaseAdmin = isValidServiceKey
   ? createClient(targetUrl, supabaseServiceRoleKey)
   : supabase;
 
