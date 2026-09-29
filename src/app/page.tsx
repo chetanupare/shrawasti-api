@@ -541,8 +541,8 @@ export default function AdminDashboard() {
   ];
 
   const sidebarContent = (
-    <VStack align="stretch" p="4" gap="1.5" flex="1">
-      <Text fontSize="xs" fontWeight="bold" color="gray.300" px="3" pt="2" textTransform="uppercase" letterSpacing="wider">
+    <VStack align="stretch" p="2.5" gap="1" flex="1">
+      <Text fontSize="10px" fontWeight="bold" color="#94A3B8" px="2.5" pt="1" pb="1" textTransform="uppercase" letterSpacing="wider">
         Management Modules
       </Text>
 
@@ -559,26 +559,26 @@ export default function AdminDashboard() {
             variant="ghost"
             justifyContent="space-between"
             w="full"
-            h="44px"
-            px="3.5"
-            borderRadius="xl"
+            h="36px"
+            px="3"
+            borderRadius="lg"
             bg={isActive ? "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)" : "transparent"}
-            color={isActive ? "#FFFFFF" : "#CBD5E1"}
-            boxShadow={isActive ? "0 4px 14px rgba(37, 99, 235, 0.4)" : "none"}
+            color={isActive ? "#FFFFFF" : "#E2E8F0"}
+            boxShadow={isActive ? "0 4px 12px rgba(37, 99, 235, 0.4)" : "none"}
             _hover={{ bg: isActive ? "blue.600" : "rgba(255, 255, 255, 0.08)", color: "#FFFFFF" }}
             fontWeight={isActive ? "bold" : "medium"}
             transition="all 0.2s"
           >
-            <HStack gap="3">
-              <Icon size={18} color={isActive ? "#FFFFFF" : "#CBD5E1"} />
-              <Text fontSize="sm">{item.label}</Text>
+            <HStack gap="2.5">
+              <Icon size={16} color={isActive ? "#FFFFFF" : "#CBD5E1"} />
+              <Text fontSize="xs">{item.label}</Text>
             </HStack>
             {item.count !== undefined && (
               <Badge
                 borderRadius="full"
-                px="2.5"
-                py="0.5"
-                fontSize="xs"
+                px="2"
+                py="0"
+                fontSize="10px"
                 bg={isActive ? "whiteAlpha.300" : "rgba(255, 255, 255, 0.15)"}
                 color={isActive ? "#FFFFFF" : "#F8FAFC"}
               >
@@ -589,7 +589,7 @@ export default function AdminDashboard() {
         );
       })}
 
-      <Text fontSize="xs" fontWeight="bold" color="gray.300" px="3" pt="4" textTransform="uppercase" letterSpacing="wider">
+      <Text fontSize="10px" fontWeight="bold" color="#94A3B8" px="2.5" pt="3" pb="1" textTransform="uppercase" letterSpacing="wider">
         System & Developer
       </Text>
 
@@ -608,18 +608,18 @@ export default function AdminDashboard() {
             }}
             variant="ghost"
             justifyContent="flex-start"
-            gap="3"
+            gap="2.5"
             w="full"
-            h="44px"
-            px="3.5"
-            borderRadius="xl"
+            h="36px"
+            px="3"
+            borderRadius="lg"
             bg={isActive ? "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)" : "transparent"}
-            color={isActive ? "#FFFFFF" : "#CBD5E1"}
-            boxShadow={isActive ? "0 4px 14px rgba(37, 99, 235, 0.4)" : "none"}
+            color={isActive ? "#FFFFFF" : "#E2E8F0"}
+            boxShadow={isActive ? "0 4px 12px rgba(37, 99, 235, 0.4)" : "none"}
             _hover={{ bg: isActive ? "blue.600" : "rgba(255, 255, 255, 0.08)", color: "#FFFFFF" }}
           >
-            <Icon size={18} color={isActive ? "#FFFFFF" : "#CBD5E1"} />
-            <Text fontSize="sm">{item.label}</Text>
+            <Icon size={16} color={isActive ? "#FFFFFF" : "#CBD5E1"} />
+            <Text fontSize="xs">{item.label}</Text>
           </Button>
         );
       })}
@@ -655,7 +655,7 @@ export default function AdminDashboard() {
       <Flex flex="1" overflow="hidden">
         {/* Desktop Sidebar */}
         <Box
-          w="270px"
+          w="230px"
           bg="#0F172A"
           borderRight="1px solid"
           borderColor="rgba(255, 255, 255, 0.12)"
@@ -663,24 +663,24 @@ export default function AdminDashboard() {
           flexDir="column"
         >
           {/* Brand */}
-          <Flex p="6" alignItems="center" gap="3" borderBottom="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+          <Flex p="3.5" alignItems="center" gap="2.5" borderBottom="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
             <Flex
-              w="42px"
-              h="42px"
-              borderRadius="xl"
+              w="36px"
+              h="36px"
+              borderRadius="lg"
               bgGradient="linear(to-br, blue.500, purple.600)"
               alignItems="center"
               justifyContent="center"
-              boxShadow="0 0 18px rgba(59, 130, 246, 0.4)"
+              boxShadow="0 0 14px rgba(59, 130, 246, 0.4)"
             >
-              <ShieldCheck size={24} color="#FFF" />
+              <ShieldCheck size={20} color="#FFF" />
             </Flex>
             <Box>
-              <Heading size="md" color="white" fontWeight="800" letterSpacing="tight">
+              <Heading size="xs" color="white" fontWeight="800" letterSpacing="tight">
                 Shrawasti
               </Heading>
-              <Badge colorScheme="purple" fontSize="10px" variant="solid" px="2" py="0.5" borderRadius="md">
-                Chakra Enterprise v2.5
+              <Badge colorScheme="purple" fontSize="9px" variant="solid" px="1.5" py="0" borderRadius="md">
+                Admin Panel
               </Badge>
             </Box>
           </Flex>
@@ -688,15 +688,15 @@ export default function AdminDashboard() {
           {sidebarContent}
 
           {/* Database Status footer */}
-          <Box p="4" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)" bg="#090D16">
-            <Flex alignItems="center" gap="3">
-              <Box w="8px" h="8px" borderRadius="full" bg="#34D399" boxShadow="0 0 10px #34D399" />
+          <Box p="3" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)" bg="#090D16">
+            <Flex alignItems="center" gap="2.5">
+              <Box w="7px" h="7px" borderRadius="full" bg="#34D399" boxShadow="0 0 8px #34D399" />
               <Box>
-                <Text fontSize="xs" fontWeight="bold" color="white">
-                  Supabase Cloud DB
+                <Text fontSize="11px" fontWeight="bold" color="white">
+                  Supabase DB
                 </Text>
-                <Text fontSize="10px" color="gray.300">
-                  Realtime polling (5s interval)
+                <Text fontSize="9px" color="#94A3B8">
+                  Realtime active (5s)
                 </Text>
               </Box>
             </Flex>
@@ -725,14 +725,14 @@ export default function AdminDashboard() {
         <Flex flex="1" flexDir="column" overflowX="hidden" w="full">
           {/* Top Control Bar */}
           <Flex
-            h="72px"
-            px={{ base: "4", md: "8" }}
+            h="52px"
+            px={{ base: "3", md: "5" }}
             bg="#0F172A"
             borderBottom="1px solid"
             borderColor="rgba(255, 255, 255, 0.12)"
             alignItems="center"
             justifyContent="space-between"
-            gap="4"
+            gap="3"
           >
             <HStack gap="3" flex="1">
               <IconButton
@@ -845,7 +845,7 @@ export default function AdminDashboard() {
           </Box>
 
           {/* Content Body */}
-          <Box p={{ base: "4", md: "8" }} flex="1" overflowY="auto">
+          <Box p={{ base: "3", md: "5" }} flex="1" overflowY="auto">
             {loading ? (
               <Flex h="300px" alignItems="center" justifyContent="center" flexDir="column" gap="4">
                 <Spinner size="xl" color="blue.400" />
@@ -857,44 +857,44 @@ export default function AdminDashboard() {
               <>
                 {/* TAB 1: OVERVIEW */}
                 {activeTab === "overview" && (
-                  <Stack gap="8">
+                  <Stack gap="4">
                     {/* KPI Cards Grid */}
-                    <Grid templateColumns={{ base: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(5, 1fr)" }} gap="4">
+                    <Grid templateColumns={{ base: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(5, 1fr)" }} gap="3">
                       {[
                         {
                           title: "Total Revenue",
                           value: `₹${(stats.totalRevenue || 0).toLocaleString("en-IN")}`,
                           icon: DollarSign,
                           color: "#34D399",
-                          bg: "rgba(16, 185, 129, 0.2)",
+                          bg: "rgba(16, 185, 129, 0.25)",
                         },
                         {
                           title: "Total Bookings",
                           value: stats.totalBookings || bookings.length || 0,
                           icon: CalendarCheck,
                           color: "#60A5FA",
-                          bg: "rgba(59, 130, 246, 0.2)",
+                          bg: "rgba(59, 130, 246, 0.25)",
                         },
                         {
                           title: "Confirmed Jobs",
                           value: stats.confirmedBookings || bookings.filter((b) => b.status === "confirmed").length || 0,
                           icon: CheckCircle2,
                           color: "#C084FC",
-                          bg: "rgba(168, 85, 247, 0.2)",
+                          bg: "rgba(168, 85, 247, 0.25)",
                         },
                         {
                           title: "Registered Users",
                           value: stats.totalUsers || users.length || 0,
                           icon: Users,
-                          color: "#FBBF24",
-                          bg: "rgba(245, 158, 11, 0.2)",
+                          color: "#FDE047",
+                          bg: "rgba(245, 158, 11, 0.25)",
                         },
                         {
                           title: "Active Providers",
                           value: stats.activeProviders || providers.length || 0,
                           icon: UserCheck,
-                          color: "#2DD4BF",
-                          bg: "rgba(20, 184, 166, 0.2)",
+                          color: "#5EEAD4",
+                          bg: "rgba(20, 184, 166, 0.25)",
                         },
                       ].map((kpi, idx) => {
                         const Icon = kpi.icon;
@@ -904,21 +904,21 @@ export default function AdminDashboard() {
                             bg="#111827"
                             borderColor="rgba(255, 255, 255, 0.12)"
                             borderWidth="1px"
-                            borderRadius="2xl"
-                            p="4.5"
-                            boxShadow="0 4px 20px rgba(0,0,0,0.4)"
+                            borderRadius="xl"
+                            p="3"
+                            boxShadow="0 4px 14px rgba(0,0,0,0.3)"
                           >
                             <Flex justifyContent="space-between" alignItems="flex-start">
                               <Box>
-                                <Text fontSize="xs" fontWeight="bold" color="gray.300" mb="1">
+                                <Text fontSize="11px" fontWeight="bold" color="#E2E8F0" mb="0.5">
                                   {kpi.title}
                                 </Text>
-                                <Heading size="md" color="#FFFFFF" fontWeight="800">
+                                <Heading size="sm" color="#FFFFFF" fontWeight="800">
                                   {kpi.value}
                                 </Heading>
                               </Box>
-                              <Flex p="2.5" borderRadius="xl" bg={kpi.bg}>
-                                <Icon size={18} color={kpi.color} />
+                              <Flex p="2" borderRadius="lg" bg={kpi.bg}>
+                                <Icon size={16} color={kpi.color} />
                               </Flex>
                             </Flex>
                           </Card.Root>
@@ -1424,46 +1424,46 @@ export default function AdminDashboard() {
                         </Text>
                       </Flex>
                     ) : (
-                      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap="4">
+                      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" }} gap="3">
                         {filteredServices.map((s) => {
                           const is2W = (s.vehicleType || s.vehicle_type || "").includes("2W") || (s.category || "").includes("2w") || (s.category || "").includes("bike");
                           return (
-                            <Card.Root key={s.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
+                            <Card.Root key={s.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="3">
                               <Flex justifyContent="space-between" alignItems="flex-start" mb="2">
                                 <Box>
                                   <Heading size="xs" color="#FFFFFF" fontWeight="bold" mb="1">
                                     {s.name}
                                   </Heading>
-                                  <HStack gap="1.5">
-                                    <Badge colorScheme={is2W ? "amber" : "blue"} fontSize="10px" fontWeight="bold">
+                                  <HStack gap="1">
+                                    <Badge colorScheme={is2W ? "amber" : "blue"} fontSize="9px" fontWeight="bold">
                                       {is2W ? "2W Bike" : "4W Car"}
                                     </Badge>
                                     {s.bodyType && s.bodyType !== "All" && (
-                                      <Badge colorScheme="purple" fontSize="10px" fontWeight="bold">
+                                      <Badge colorScheme="purple" fontSize="9px" fontWeight="bold">
                                         {s.bodyType}
                                       </Badge>
                                     )}
                                   </HStack>
                                 </Box>
-                                <Badge colorScheme="gray" fontSize="10px">
+                                <Badge colorScheme="gray" fontSize="9px">
                                   {s.category || "Service"}
                                 </Badge>
                               </Flex>
 
-                              <Text fontSize="xs" color="gray.300" my="2">
+                              <Text fontSize="11px" color="#CBD5E1" my="1.5" lineClamp={2}>
                                 {s.description || "Professional vehicle wash and maintenance service."}
                               </Text>
 
-                              <Flex justifyContent="space-between" alignItems="center" my="3">
-                                <Text fontSize="md" fontWeight="bold" color="#34D399">
+                              <Flex justifyContent="space-between" alignItems="center" my="2">
+                                <Text fontSize="sm" fontWeight="bold" color="#34D399">
                                   ₹{s.basePrice || s.price}
                                 </Text>
-                                <Text fontSize="xs" color="gray.300">
+                                <Text fontSize="11px" color="#E2E8F0">
                                   ⏱️ {s.durationMinutes ? `${s.durationMinutes} mins` : s.duration || "45 mins"}
                                 </Text>
                               </Flex>
 
-                              <Flex justifyContent="flex-end" gap="2" pt="2" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+                              <Flex justifyContent="flex-end" gap="1.5" pt="2" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
                                 <Button
                                   size="xs"
                                   colorScheme="blue"
@@ -1651,16 +1651,16 @@ export default function AdminDashboard() {
                         </Text>
                       </Flex>
                     ) : (
-                      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap="4">
+                      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" }} gap="3">
                         {filteredVehicles.map((v) => {
                           const isBike = (v.category || "").toLowerCase().includes("bike") || (v.category || "").toLowerCase().includes("2w");
                           const imgUrl = v.modelImage || v.model_image;
                           return (
-                            <Card.Root key={v.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
-                              <Flex justifyContent="space-between" alignItems="flex-start" mb="3">
-                                <HStack gap="2.5">
+                            <Card.Root key={v.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="3">
+                              <Flex justifyContent="space-between" alignItems="flex-start" mb="2">
+                                <HStack gap="2">
                                   {imgUrl ? (
-                                    <Flex w="48px" h="48px" borderRadius="xl" overflow="hidden" bg="#1E293B" border="1px solid" borderColor="rgba(255, 255, 255, 0.2)" flexShrink={0} alignItems="center" justifyContent="center">
+                                    <Flex w="40px" h="40px" borderRadius="lg" overflow="hidden" bg="#1E293B" border="1px solid" borderColor="rgba(255, 255, 255, 0.2)" flexShrink={0} alignItems="center" justifyContent="center">
                                       <img
                                         src={imgUrl}
                                         alt={`${v.brand} ${v.model}`}
@@ -1671,25 +1671,25 @@ export default function AdminDashboard() {
                                       />
                                     </Flex>
                                   ) : (
-                                    <Flex w="40px" h="40px" borderRadius="xl" bg={isBike ? "amber.900" : "purple.900"} color={isBike ? "#FDE047" : "#C084FC"} alignItems="center" justifyContent="center">
-                                      {isBike ? <Bike size={20} /> : <Car size={20} />}
+                                    <Flex w="36px" h="36px" borderRadius="lg" bg={isBike ? "rgba(245, 158, 11, 0.25)" : "rgba(168, 85, 247, 0.25)"} color={isBike ? "#FDE047" : "#C084FC"} alignItems="center" justifyContent="center">
+                                      {isBike ? <Bike size={18} color="#FDE047" /> : <Car size={18} color="#C084FC" />}
                                     </Flex>
                                   )}
                                   <Box>
                                     <Heading size="xs" color="#FFFFFF" fontWeight="bold">
                                       {v.brand} {v.model}
                                     </Heading>
-                                    <Text fontSize="10px" color="gray.300">
+                                    <Text fontSize="10px" color="#CBD5E1">
                                       {v.category || "Car"} ({v.bodyType || v.body_type || "Hatchback"})
                                     </Text>
                                   </Box>
                                 </HStack>
-                                <Badge colorScheme={isBike ? "amber" : "purple"} fontSize="10px" fontWeight="bold">
+                                <Badge colorScheme={isBike ? "amber" : "purple"} fontSize="9px" fontWeight="bold">
                                   {v.category || "Car"}
                                 </Badge>
                               </Flex>
 
-                              <Flex justifyContent="flex-end" gap="2" pt="2" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+                              <Flex justifyContent="flex-end" gap="1.5" pt="2" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
                                 <Button
                                   size="xs"
                                   colorScheme="blue"
