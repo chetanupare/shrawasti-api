@@ -79,7 +79,8 @@ export async function GET(request: Request) {
       },
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("[ProviderProfile API Error]:", err);
+    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
   }
 }
 
