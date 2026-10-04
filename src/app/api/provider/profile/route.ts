@@ -42,7 +42,7 @@ export async function GET(request: Request) {
       const p1 = `+91 ${cleanPhone.slice(-10).replace(/(\d{5})(\d{5})/, '$1 $2')}`;
       const p2 = `+91${cleanPhone.slice(-10)}`;
       const p3 = cleanPhone.slice(-10);
-      query = query.or(`phone.eq."${p1}",phone.eq."${p2}",phone.eq."${p3}"`);
+      query = query.in("phone", [p1, p2, p3, providerId]);
     } else {
       return NextResponse.json({ error: "Provider not found" }, { status: 404 });
     }

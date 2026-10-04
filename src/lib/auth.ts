@@ -90,7 +90,7 @@ export async function requireProviderUser(request: Request) {
     const p1 = `+91 ${phoneClean.slice(-10).replace(/(\d{5})(\d{5})/, '$1 $2')}`;
     const p2 = `+91${phoneClean.slice(-10)}`;
     const p3 = phoneClean.slice(-10);
-    query = query.or(`phone.eq."${p1}",phone.eq."${p2}",phone.eq."${p3}"`);
+    query = query.in("phone", [p1, p2, p3, userPhone]);
   } else {
     return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };
   }
