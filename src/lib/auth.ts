@@ -23,13 +23,7 @@ export async function requireAuthenticatedUser(request: Request) {
   }
   const token = authHeader.split(" ")[1];
 
-  // 1. Try Supabase Auth token
-  const { data: authData, error: authError } = await supabase.auth.getUser(token);
-  if (!authError && authData?.user) {
-    return { error: null, status: 200, user: authData.user };
-  }
-
-  // 2. Fallback: Parse JWT payload (for Firebase Auth ID tokens)
+  // 1. Try parsing JWT payload (Firebase Auth / custom ID tokens)
   const payload = parseJwtPayload(token);
   if (payload && (payload.sub || payload.user_id || payload.phone_number)) {
     const phone = payload.phone_number || payload.phone || null;
@@ -44,6 +38,16 @@ export async function requireAuthenticatedUser(request: Request) {
       },
     };
     return { error: null, status: 200, user: user as any };
+  }
+
+  // 2. Try Supabase Auth token (only if sub looks like a valid UUID)
+  if (payload?.sub && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.sub)) {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser(token);
+      if (!authError && authData?.user) {
+        return { error: null, status: 200, user: authData.user };
+      }
+    } catch {}
   }
 
   return { error: "Invalid authentication", status: 401, user: null };
