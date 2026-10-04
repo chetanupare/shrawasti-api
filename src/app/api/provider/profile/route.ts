@@ -31,15 +31,15 @@ export async function GET(request: Request) {
     }
 
     const userPhone = user?.phone || user?.user_metadata?.phone || providerId;
-    const cleanPhone = userPhone ? userPhone.replace(/\D/g, '') : '';
+    const cleanDigits = userPhone ? userPhone.replace(/\D/g, '') : '';
+    const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(providerId);
 
     let query = supabase.from("providers").select("*");
     
     if (isUuid) {
       query = query.eq("id", providerId);
-    } else if (cleanPhone.length >= 10) {
-      const last10 = cleanPhone.slice(-10);
+    } else if (last10.length === 10) {
       const p1 = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
       const p2 = `+91${last10}`;
       const p3 = last10;

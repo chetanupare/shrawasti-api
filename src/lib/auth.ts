@@ -79,15 +79,15 @@ export async function requireProviderUser(request: Request) {
   }
 
   const userPhone = user.phone || user.user_metadata?.phone || '';
-  const phoneClean = userPhone ? userPhone.replace(/\D/g, '') : '';
+  const cleanDigits = userPhone ? userPhone.replace(/\D/g, '') : '';
+  const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
   const userIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
 
   let query = supabase.from("providers").select("id, status");
 
   if (userIsUuid) {
     query = query.eq("id", user.id);
-  } else if (phoneClean.length >= 10) {
-    const last10 = phoneClean.slice(-10);
+  } else if (last10.length === 10) {
     const p1 = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
     const p2 = `+91${last10}`;
     const p3 = last10;
