@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAuthenticatedUser } from "@/lib/auth";
+import { requireAuthenticatedUser, ensureUserExists } from "@/lib/auth";
 import { notifyBookingEvent } from "@/lib/notifications";
 
 export async function POST(
@@ -12,6 +12,8 @@ export async function POST(
     if (authError || !user) {
       return NextResponse.json({ error: authError }, { status: authStatus });
     }
+
+    await ensureUserExists(user);
 
     const { id: bookingId } = await params;
     const body = await request.json();
