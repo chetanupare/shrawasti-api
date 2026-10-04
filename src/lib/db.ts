@@ -16,7 +16,7 @@ export async function queryProviderByPhoneOrId(providerIdOrPhone: string) {
   const cleanDigits = providerIdOrPhone.replace(/\D/g, '');
   const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
 
-  // 1. Direct PG Pool lookup
+  // 1. Direct PG Pool lookup with regexp_replace
   try {
     if (isUuid) {
       const res = await pool.query('SELECT * FROM public.providers WHERE id = $1 LIMIT 1', [providerIdOrPhone]);
@@ -30,11 +30,11 @@ export async function queryProviderByPhoneOrId(providerIdOrPhone: string) {
       );
       if (res.rows[0]) return res.rows[0];
     }
-  } catch (err) {
-    console.warn('[queryProviderByPhoneOrId Pool Error]:', err);
+  } catch (err: any) {
+    console.warn('[queryProviderByPhoneOrId Pool Error]:', err?.message || err);
   }
 
-  // 2. Supabase client fallback with phone variations
+  // 2. Supabase client fallback with .in() array and .ilike()
   try {
     if (isUuid) {
       const { data } = await supabase.from('providers').select('*').eq('id', providerIdOrPhone).maybeSingle();
@@ -45,15 +45,26 @@ export async function queryProviderByPhoneOrId(providerIdOrPhone: string) {
       const p1 = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
       const p2 = `+91${last10}`;
       const p3 = last10;
-      const { data } = await supabase
+
+      // Try exact array match
+      const { data: inData } = await supabase
         .from('providers')
         .select('*')
-        .or(`phone.eq.${p1},phone.eq.${p2},phone.eq.${p3}`)
+        .in('phone', [p1, p2, p3])
         .maybeSingle();
-      if (data) return data;
+      if (inData) return inData;
+
+      // Try substring match on last 5 digits
+      const last5 = last10.slice(-5);
+      const { data: ilikeData } = await supabase
+        .from('providers')
+        .select('*')
+        .ilike('phone', `%${last5}%`)
+        .maybeSingle();
+      if (ilikeData) return ilikeData;
     }
-  } catch (err) {
-    console.warn('[queryProviderByPhoneOrId Supabase Error]:', err);
+  } catch (err: any) {
+    console.warn('[queryProviderByPhoneOrId Supabase Error]:', err?.message || err);
   }
 
   return null;
