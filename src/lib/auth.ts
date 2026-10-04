@@ -74,16 +74,21 @@ export async function requireProviderUser(request: Request) {
     return { error, status, user: null, provider: null };
   }
 
-  const userPhone = user.phone || user.user_metadata?.phone;
+  const userPhone = user.phone || user.user_metadata?.phone || '';
   const phoneClean = userPhone ? userPhone.replace(/\D/g, '') : '';
+  const userIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
 
   let query = supabase.from("providers").select("id, status");
-  if (phoneClean) {
+
+  if (userIsUuid) {
+    query = query.eq("id", user.id);
+  } else if (phoneClean.length >= 10) {
     const p1 = `+91 ${phoneClean.slice(-10).replace(/(\d{5})(\d{5})/, '$1 $2')}`;
     const p2 = `+91${phoneClean.slice(-10)}`;
-    query = query.or(`id.eq.${user.id},phone.eq."${p1}",phone.eq."${p2}",phone.eq."${userPhone}"`);
+    const p3 = phoneClean.slice(-10);
+    query = query.or(`phone.eq."${p1}",phone.eq."${p2}",phone.eq."${p3}"`);
   } else {
-    query = query.eq("id", user.id);
+    return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };
   }
 
   const { data, error: profileError } = await query.maybeSingle();

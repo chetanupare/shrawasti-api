@@ -34,16 +34,16 @@ export async function GET(request: Request) {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(providerId);
 
     let query = supabase.from("providers").select("*");
-    if (cleanPhone.length >= 10) {
+    
+    if (isUuid) {
+      query = query.eq("id", providerId);
+    } else if (cleanPhone.length >= 10) {
       const p1 = `+91 ${cleanPhone.slice(-10).replace(/(\d{5})(\d{5})/, '$1 $2')}`;
       const p2 = `+91${cleanPhone.slice(-10)}`;
-      if (isUuid) {
-        query = query.or(`id.eq.${providerId},phone.eq."${p1}",phone.eq."${p2}",phone.eq."${providerId}"`);
-      } else {
-        query = query.or(`phone.eq."${p1}",phone.eq."${p2}",phone.eq."${providerId}"`);
-      }
-    } else if (isUuid) {
-      query = query.eq("id", providerId);
+      const p3 = cleanPhone.slice(-10);
+      query = query.or(`phone.eq."${p1}",phone.eq."${p2}",phone.eq."${p3}"`);
+    } else {
+      return NextResponse.json({ error: "Provider not found" }, { status: 404 });
     }
 
     const { data, error } = await query.maybeSingle();
