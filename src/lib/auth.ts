@@ -30,6 +30,31 @@ function parseJwtPayload(token: string) {
   }
 }
 
+export async function ensureUserExists(user: any) {
+  if (!user || !user.id) return;
+  const { supabaseAdmin } = require("@/lib/supabase");
+  
+  const { data: existing } = await supabaseAdmin
+    .from("users")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!existing) {
+    const userPhone = user.phone || user.user_metadata?.phone || null;
+    const userName = user.user_metadata?.name || (user.email ? user.email.split("@")[0] : "Customer");
+    const userEmail = user.email || null;
+
+    await supabaseAdmin.from("users").upsert({
+      id: user.id,
+      name: userName,
+      email: userEmail,
+      phone: userPhone,
+      updated_at: new Date().toISOString(),
+    });
+  }
+}
+
 export async function requireAuthenticatedUser(request: Request) {
   const authHeader = request.headers.get("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {

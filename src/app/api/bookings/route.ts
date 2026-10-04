@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { calcTotals, getPriceFor, Service } from "@/lib/pricing";
-import { requireAuthenticatedUser } from "@/lib/auth";
+import { requireAuthenticatedUser, ensureUserExists } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
@@ -64,7 +64,8 @@ export async function POST(request: Request) {
     if (authError || !user) {
       return NextResponse.json({ error: authError || "Authentication required" }, { status: authStatus || 401 });
     }
-    
+
+    await ensureUserExists(user);
     const trueUserId = user.id;
     const body = await request.json();
     const {
