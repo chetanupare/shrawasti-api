@@ -16,7 +16,7 @@ export async function queryProviderByPhoneOrId(providerIdOrPhone: string) {
   const cleanDigits = providerIdOrPhone.replace(/\D/g, '');
   const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
 
-  // 1. Direct PG Pool lookup with regexp_replace
+  // 1. Direct PG Pool lookup using POSIX regex [^0-9]
   try {
     if (isUuid) {
       const res = await pool.query('SELECT * FROM public.providers WHERE id = $1 LIMIT 1', [providerIdOrPhone]);
@@ -25,7 +25,7 @@ export async function queryProviderByPhoneOrId(providerIdOrPhone: string) {
 
     if (last10.length === 10) {
       const res = await pool.query(
-        `SELECT * FROM public.providers WHERE regexp_replace(phone, '\\D', '', 'g') LIKE $1 LIMIT 1`,
+        `SELECT * FROM public.providers WHERE regexp_replace(phone, '[^0-9]', '', 'g') LIKE $1 LIMIT 1`,
         [`%${last10}%`]
       );
       if (res.rows[0]) return res.rows[0];
