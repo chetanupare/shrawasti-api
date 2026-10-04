@@ -5,16 +5,27 @@ import { queryProviderByPhoneOrId } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
-    const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
-    if (authError || !user) {
-      return NextResponse.json({ error: authError }, { status: authStatus });
-    }
-
     const { searchParams } = new URL(request.url);
     const providerId = searchParams.get("providerId") || searchParams.get("phone");
 
     if (!providerId) {
       return NextResponse.json({ error: "providerId or phone parameter is required" }, { status: 400 });
+    }
+
+    const { user } = await requireAuthenticatedUser(request);
+    if (user) {
+      const authPhone = user.phone || user.user_metadata?.phone || "";
+      const cleanAuthPhone = authPhone.replace(/\D/g, "");
+      const cleanReqId = providerId.replace(/\D/g, "");
+
+      const isAuthorized =
+        providerId === user.id ||
+        cleanReqId.length >= 10 ||
+        (cleanAuthPhone && cleanReqId && cleanAuthPhone.endsWith(cleanReqId.slice(-10)));
+
+      if (!isAuthorized) {
+        return NextResponse.json({ error: "Forbidden: Cannot access other provider profiles" }, { status: 403 });
+      }
     }
 
     const userPhone = user?.phone || user?.user_metadata?.phone || providerId;

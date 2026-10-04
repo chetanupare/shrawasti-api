@@ -1,5 +1,6 @@
 // @ts-ignore
 import { Pool } from 'pg';
+import { supabase } from '@/lib/supabase';
 
 const dbUrl = process.env.DATABASE_URL || 'postgresql://postgres.kwxjjqvpzxlbivptaath:znuWVBq6szTllDuV@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres';
 
@@ -9,24 +10,50 @@ export const pool = new Pool({
 });
 
 export async function queryProviderByPhoneOrId(providerIdOrPhone: string) {
+  if (!providerIdOrPhone) return null;
+
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(providerIdOrPhone);
   const cleanDigits = providerIdOrPhone.replace(/\D/g, '');
   const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
 
-  if (isUuid) {
-    const res = await pool.query('SELECT * FROM public.providers WHERE id = $1 LIMIT 1', [providerIdOrPhone]);
-    return res.rows[0] || null;
+  // 1. Direct PG Pool lookup
+  try {
+    if (isUuid) {
+      const res = await pool.query('SELECT * FROM public.providers WHERE id = $1 LIMIT 1', [providerIdOrPhone]);
+      if (res.rows[0]) return res.rows[0];
+    }
+
+    if (last10.length === 10) {
+      const res = await pool.query(
+        `SELECT * FROM public.providers WHERE regexp_replace(phone, '\\D', '', 'g') LIKE $1 LIMIT 1`,
+        [`%${last10}%`]
+      );
+      if (res.rows[0]) return res.rows[0];
+    }
+  } catch (err) {
+    console.warn('[queryProviderByPhoneOrId Pool Error]:', err);
   }
 
-  if (last10.length === 10) {
-    const res = await pool.query(
-      `SELECT * FROM public.providers 
-       WHERE REPLACE(REPLACE(phone, ' ', ''), '+91', '') = $1 
-          OR phone ILIKE $2 
-       LIMIT 1`,
-      [last10, `%${last10}%`]
-    );
-    return res.rows[0] || null;
+  // 2. Supabase client fallback with phone variations
+  try {
+    if (isUuid) {
+      const { data } = await supabase.from('providers').select('*').eq('id', providerIdOrPhone).maybeSingle();
+      if (data) return data;
+    }
+
+    if (last10.length === 10) {
+      const p1 = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+      const p2 = `+91${last10}`;
+      const p3 = last10;
+      const { data } = await supabase
+        .from('providers')
+        .select('*')
+        .or(`phone.eq.${p1},phone.eq.${p2},phone.eq.${p3}`)
+        .maybeSingle();
+      if (data) return data;
+    }
+  } catch (err) {
+    console.warn('[queryProviderByPhoneOrId Supabase Error]:', err);
   }
 
   return null;
