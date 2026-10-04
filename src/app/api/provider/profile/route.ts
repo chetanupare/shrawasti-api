@@ -35,20 +35,23 @@ export async function GET(request: Request) {
     const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(providerId);
 
-    let query = supabase.from("providers").select("*");
-    
+    let data: any = null;
+    let error: any = null;
+
     if (isUuid) {
-      query = query.eq("id", providerId);
+      const res = await supabase.from("providers").select("*").eq("id", providerId).maybeSingle();
+      data = res.data;
+      error = res.error;
     } else if (last10.length === 10) {
       const p1 = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
       const p2 = `+91${last10}`;
       const p3 = last10;
-      query = query.in("phone", [p1, p2, p3]);
+      const res = await supabase.from("providers").select("*").in("phone", [p1, p2, p3]).maybeSingle();
+      data = res.data;
+      error = res.error;
     } else {
       return NextResponse.json({ error: "Provider not found" }, { status: 404 });
     }
-
-    const { data, error } = await query.maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

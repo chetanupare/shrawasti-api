@@ -83,20 +83,27 @@ export async function requireProviderUser(request: Request) {
   const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
   const userIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
 
-  let query = supabase.from("providers").select("id, status");
+  let data: any = null;
+  let profileError: any = null;
 
   if (userIsUuid) {
-    query = query.eq("id", user.id);
+    const res = await supabase.from("providers").select("id, status").eq("id", user.id).maybeSingle();
+    data = res.data;
+    profileError = res.error;
   } else if (last10.length === 10) {
     const p1 = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
     const p2 = `+91${last10}`;
     const p3 = last10;
-    query = query.in("phone", [p1, p2, p3]);
+    const res = await supabase.from("providers").select("id, status").in("phone", [p1, p2, p3]).maybeSingle();
+    data = res.data;
+    profileError = res.error;
   } else {
     return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };
   }
 
-  const { data, error: profileError } = await query.maybeSingle();
+  if (profileError || !data) {
+    return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };
+  }
 
   if (profileError || !data) {
     return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };
