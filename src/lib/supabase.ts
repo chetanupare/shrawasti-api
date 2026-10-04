@@ -13,16 +13,28 @@ const targetUrl = supabaseUrl || "https://placeholder.supabase.co";
 const targetAnonKey = supabaseAnonKey || "placeholder";
 
 // Client for standard operations (RLS enforced if user token provided)
-export const supabase = createClient(targetUrl, targetAnonKey);
+export const supabase = createClient(targetUrl, targetAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  },
+});
 
 const isValidServiceKey =
   supabaseServiceRoleKey &&
   !supabaseServiceRoleKey.includes("your_") &&
   supabaseServiceRoleKey.trim().length > 20;
 
-// Admin client for backend operations that bypass RLS when valid service role key is configured
+// Admin client for backend operations
 export const supabaseAdmin = isValidServiceKey
-  ? createClient(targetUrl, supabaseServiceRoleKey)
+  ? createClient(targetUrl, supabaseServiceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    })
   : supabase;
 
 
