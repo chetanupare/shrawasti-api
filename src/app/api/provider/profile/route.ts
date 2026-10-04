@@ -39,7 +39,11 @@ export async function GET(request: Request) {
     if (isUuid) {
       query = query.eq("id", providerId);
     } else if (cleanPhone.length >= 10) {
-      query = query.ilike("phone", `%${cleanPhone.slice(-10)}%`);
+      const last10 = cleanPhone.slice(-10);
+      const p1 = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+      const p2 = `+91${last10}`;
+      const p3 = last10;
+      query = query.in("phone", [p1, p2, p3]);
     } else {
       return NextResponse.json({ error: "Provider not found" }, { status: 404 });
     }
