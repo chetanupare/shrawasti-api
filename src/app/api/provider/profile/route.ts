@@ -45,8 +45,10 @@ export async function GET(request: Request) {
     } else if (last10.length === 10) {
       const p1 = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
       const p2 = `+91${last10}`;
-      const p3 = last10;
-      const res = await supabase.from("providers").select("*").in("phone", [p1, p2, p3]).maybeSingle();
+      let res = await supabase.from("providers").select("*").eq("phone", p1).maybeSingle();
+      if (!res.data) {
+        res = await supabase.from("providers").select("*").eq("phone", p2).maybeSingle();
+      }
       data = res.data;
       error = res.error;
     } else {
