@@ -13,7 +13,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "userId parameter is required" }, { status: 400 });
     }
 
-    let query = supabase.from("bookings").select("*").eq("user_id", userId);
+    const { getFirebaseUuid } = require("@/lib/auth");
+    const uuid = getFirebaseUuid(userId) || userId;
+
+    let query = supabase
+      .from("bookings")
+      .select("*")
+      .or(`user_id.eq.${userId},user_id.eq.${uuid}`);
 
     if (status) {
       query = query.eq("status", status);

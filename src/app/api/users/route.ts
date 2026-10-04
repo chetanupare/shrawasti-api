@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { getFirebaseUuid } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
@@ -10,10 +11,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "userId parameter is required" }, { status: 400 });
     }
 
+    const uuid = getFirebaseUuid(userId) || userId;
+
     const { data, error } = await supabase
       .from("users")
       .select("*")
-      .eq("id", userId)
+      .or(`id.eq.${userId},id.eq.${uuid}`)
       .maybeSingle();
 
     if (error) {
