@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { getFirebaseUuid } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
@@ -10,10 +11,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "userId parameter is required" }, { status: 400 });
     }
 
+    const uuid = getFirebaseUuid(userId) || userId;
+
     const { data, error } = await supabase
       .from("user_subscriptions")
       .select("*, subscription_plans(*), subscription_entitlements(*)")
-      .eq("user_id", userId)
+      .or(`user_id.eq.${userId},user_id.eq.${uuid}`)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -29,6 +32,11 @@ export async function GET(request: Request) {
       startDate: sub.start_date || sub.current_period_start,
       endDate: sub.end_date || sub.current_period_end,
       washesRemaining: sub.washes_remaining ?? (sub.subscription_entitlements?.[0] ? sub.subscription_entitlements[0].included_quantity - sub.subscription_entitlements[0].used_quantity : 0),
+      snapshotPrice: Number(sub.snapshot_price || 0),
+      snapshotPlanName: sub.snapshot_plan_name || sub.subscription_plans?.name || 'Care Pass',
+      snapshotVehicleType: sub.snapshot_vehicle_type || '4W',
+      pausedAt: sub.paused_at || null,
+      pauseUntil: sub.pause_until || null,
       plan: sub.subscription_plans
         ? {
             id: sub.subscription_plans.id,
@@ -105,6 +113,11 @@ export async function POST(request: Request) {
           startDate: data.start_date || data.current_period_start,
           endDate: data.end_date || data.current_period_end,
           washesRemaining: data.washes_remaining,
+          snapshotPrice: Number(data.snapshot_price || 0),
+          snapshotPlanName: data.snapshot_plan_name || data.subscription_plans?.name || 'Care Pass',
+          snapshotVehicleType: data.snapshot_vehicle_type || '4W',
+          pausedAt: data.paused_at || null,
+          pauseUntil: data.pause_until || null,
           plan: data.subscription_plans,
           createdAt: data.created_at,
           updatedAt: data.updated_at,
@@ -146,14 +159,37 @@ export async function PUT(request: Request) {
       .from("user_subscriptions")
       .update(updates)
       .eq("id", subId)
-      .select()
+      .select("*, subscription_plans(*)")
       .maybeSingle();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ subscription: data });
+    if (!data) {
+      return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      subscription: {
+        id: data.id,
+        userId: data.user_id,
+        vehicleId: data.vehicle_id,
+        planId: data.plan_id,
+        status: data.status,
+        startDate: data.start_date || data.current_period_start,
+        endDate: data.end_date || data.current_period_end,
+        washesRemaining: data.washes_remaining,
+        snapshotPrice: Number(data.snapshot_price || 0),
+        snapshotPlanName: data.snapshot_plan_name || data.subscription_plans?.name || 'Care Pass',
+        snapshotVehicleType: data.snapshot_vehicle_type || '4W',
+        pausedAt: data.paused_at || null,
+        pauseUntil: data.pause_until || null,
+        plan: data.subscription_plans,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      }
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
