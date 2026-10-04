@@ -87,10 +87,7 @@ export async function requireProviderUser(request: Request) {
   if (userIsUuid) {
     query = query.eq("id", user.id);
   } else if (phoneClean.length >= 10) {
-    const p1 = `+91 ${phoneClean.slice(-10).replace(/(\d{5})(\d{5})/, '$1 $2')}`;
-    const p2 = `+91${phoneClean.slice(-10)}`;
-    const p3 = phoneClean.slice(-10);
-    query = query.in("phone", [p1, p2, p3, userPhone]);
+    query = query.ilike("phone", `%${phoneClean.slice(-10)}%`);
   } else {
     return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };
   }
