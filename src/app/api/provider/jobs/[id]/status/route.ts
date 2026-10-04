@@ -26,7 +26,7 @@ export async function POST(
 
     const { data: booking, error: fetchError } = await supabaseAdmin
       .from("bookings")
-      .select("id, user_id, status, assigned_provider_id")
+      .select("id, user_id, status, assigned_provider_id, payment_method, payment_status")
       .eq("id", bookingId)
       .single();
 
@@ -128,6 +128,10 @@ export async function POST(
       updated_at: new Date().toISOString(),
     };
 
+    if (targetStatus === 'completed' && booking.payment_method === 'cash') {
+      updates.payment_status = 'paid';
+    }
+
     if (beforeImages || afterImages || serviceNotes) {
       updates.service_proof = {
         beforeImages: beforeImages || [],
@@ -153,10 +157,25 @@ export async function POST(
       return NextResponse.json({ error: "Conflict: Booking state changed concurrently" }, { status: 409 });
     }
 
-    // Trigger Notification
+    // Trigger Notification & Update Provider Stats
     if (targetStatus === 'arrived') notifyBookingEvent(booking.user_id, 'TECHNICIAN_ARRIVED', bookingId);
     if (targetStatus === 'in_progress') notifyBookingEvent(booking.user_id, 'SERVICE_STARTED', bookingId);
-    if (targetStatus === 'completed') notifyBookingEvent(booking.user_id, 'SERVICE_COMPLETED', bookingId);
+    if (targetStatus === 'completed') {
+      notifyBookingEvent(booking.user_id, 'SERVICE_COMPLETED', bookingId);
+      if (booking.assigned_provider_id) {
+        const { data: pData } = await supabaseAdmin
+          .from("providers")
+          .select("total_jobs")
+          .eq("id", booking.assigned_provider_id)
+          .single();
+
+        const currentTotal = pData?.total_jobs || 0;
+        await supabaseAdmin
+          .from("providers")
+          .update({ total_jobs: currentTotal + 1 })
+          .eq("id", booking.assigned_provider_id);
+      }
+    }
 
     return NextResponse.json({
       success: true,

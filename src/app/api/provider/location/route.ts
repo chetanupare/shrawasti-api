@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { requireProviderUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from("providers")
       .update(locationUpdate)
       .eq("id", provider.id);
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: authError }, { status: authStatus });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("providers")
       .select("id, current_lat, current_lng, heading, speed, updated_at")
       .eq("id", provider.id)

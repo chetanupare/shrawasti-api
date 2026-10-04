@@ -34,10 +34,31 @@ export async function POST(request: Request) {
       );
     }
 
-    // Assigning requires booking to be confirmed
+    // Fetch booking to verify current state
+    const { data: bookingCheck, error: bCheckError } = await supabaseAdmin
+      .from("bookings")
+      .select("id, user_id, status, assigned_provider_id")
+      .eq("id", bookingId)
+      .single();
+
+    if (bCheckError || !bookingCheck) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    const allowedStatesToAssign = ["confirmed", "accepted", "assigned"];
+    if (!allowedStatesToAssign.includes(bookingCheck.status)) {
+      return NextResponse.json(
+        { error: `Cannot assign provider to booking in '${bookingCheck.status}' state` },
+        { status: 422 }
+      );
+    }
+
+    const oldProviderId = bookingCheck.assigned_provider_id;
+
+    // Assigning updates assigned_provider_id and sets status to accepted
     const updates = {
       assigned_provider_id: providerId,
-      status: "accepted", // maps to ASSIGNED
+      status: "accepted",
       updated_at: new Date().toISOString(),
     };
 
@@ -45,7 +66,7 @@ export async function POST(request: Request) {
       .from("bookings")
       .update(updates)
       .eq("id", bookingId)
-      .eq("status", "confirmed") // concurrency protection & state check
+      .eq("status", bookingCheck.status) // concurrency protection
       .select()
       .single();
 
@@ -55,14 +76,17 @@ export async function POST(request: Request) {
 
     if (!data) {
       return NextResponse.json(
-        { error: "Conflict: Booking not in confirmed state or changed concurrently" },
+        { error: "Conflict: Booking state changed concurrently" },
         { status: 409 }
       );
     }
 
-    // Trigger Notification
+    // Trigger Notifications
     notifyBookingEvent(data.user_id, 'TECHNICIAN_ASSIGNED', bookingId);
     notifyBookingEvent(providerId, 'NEW_JOB_ASSIGNED', bookingId);
+    if (oldProviderId && oldProviderId !== providerId) {
+      notifyBookingEvent(oldProviderId, 'BOOKING_CANCELLED', bookingId);
+    }
 
     return NextResponse.json({
       success: true,

@@ -137,15 +137,84 @@ export async function POST(request: Request) {
       name: s.name,
       price: getPriceFor(s, bodyType) ?? s.basePrice ?? 0
     }));
-    const { subtotal, total } = calcTotals(fullServices, bodyType);
+    const { subtotal, total: grossTotal } = calcTotals(fullServices, bodyType);
+    discount = Math.min(grossTotal, Math.max(0, Number(body.discount) || 0));
+    const total = Math.max(0, grossTotal - discount);
 
     const isOnline = paymentMethod === "online" || paymentMethod === "card" || paymentMethod === "upi";
     const initialStatus = isOnline ? "pending" : "confirmed";
     const initialPaymentStatus = "pending";
 
+    // Ensure vehicle is present in user's garage (vehicles table)
+    let finalVehicleId = vehicleId || null;
+
+    if (trueUserId && vehicleSnapshot) {
+      const vMake = vehicleSnapshot.make || vehicleSnapshot.brand || "";
+      const vModel = vehicleSnapshot.model || "";
+      const vType = vehicleSnapshot.type || "4W";
+      const vBodyType = vehicleSnapshot.bodyType || vehicleSnapshot.body_type || (vType === "2W" || vType === "Bike" ? "bike" : "hatchback");
+      const vReg = vehicleSnapshot.registrationNumber || vehicleSnapshot.registration_number || null;
+      const vColor = vehicleSnapshot.color || null;
+
+      let existingVehicle = null;
+
+      if (finalVehicleId) {
+        const { data: vRow } = await supabaseAdmin
+          .from("vehicles")
+          .select("*")
+          .eq("id", finalVehicleId)
+          .maybeSingle();
+        if (vRow) {
+          existingVehicle = vRow;
+        }
+      }
+
+      if (!existingVehicle && (vMake || vModel)) {
+        let matchQuery = supabaseAdmin
+          .from("vehicles")
+          .select("*")
+          .eq("user_id", trueUserId);
+
+        if (vMake) matchQuery = matchQuery.ilike("make", vMake);
+        if (vModel) matchQuery = matchQuery.ilike("model", vModel);
+
+        const { data: matches } = await matchQuery;
+        if (matches && matches.length > 0) {
+          if (vReg) {
+            existingVehicle = matches.find((m) => m.registration_number === vReg) || matches[0];
+          } else {
+            existingVehicle = matches[0];
+          }
+        }
+      }
+
+      if (existingVehicle) {
+        finalVehicleId = existingVehicle.id;
+      } else if (vMake || vModel) {
+        const { data: newV, error: newVErr } = await supabaseAdmin
+          .from("vehicles")
+          .insert({
+            user_id: trueUserId,
+            type: vType,
+            body_type: vBodyType,
+            make: vMake || "Vehicle",
+            model: vModel || "Model",
+            registration_number: vReg,
+            color: vColor,
+            is_manual: false,
+          })
+          .select()
+          .single();
+
+        if (newV && !newVErr) {
+          finalVehicleId = newV.id;
+        }
+      }
+    }
+
     const newBooking = {
       user_id: trueUserId,
-      vehicle_id: vehicleId || null,
+      vehicle_id: finalVehicleId,
       location_snapshot: locationSnapshot,
       vehicle_snapshot: vehicleSnapshot,
       services: authoritativeServicesSnapshot,

@@ -29,11 +29,12 @@ export async function POST(
       updated_at: new Date().toISOString(),
     };
 
-    // Concurrency protection: Booking must be unassigned or in pending/confirmed state
+    // Concurrency protection: Booking must be unassigned
     const { data, error } = await supabaseAdmin
       .from("bookings")
       .update(updates)
       .eq("id", bookingId)
+      .is("assigned_provider_id", null)
       .select()
       .maybeSingle();
 

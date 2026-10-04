@@ -51,7 +51,7 @@ export async function POST(
     }
 
     // Verify current state
-    const allowedStatesForCustomer = ["confirmed", "accepted", "assigned"];
+    const allowedStatesForCustomer = ["pending", "confirmed", "accepted", "assigned"];
     const allowedStatesForAdmin = ["pending", "confirmed", "accepted", "assigned"];
 
     const allowedStates = isAdmin ? allowedStatesForAdmin : allowedStatesForCustomer;
@@ -93,6 +93,9 @@ export async function POST(
 
     // Trigger Notification
     notifyBookingEvent(data.user_id, 'BOOKING_CANCELLED', bookingId);
+    if (data.assigned_provider_id) {
+      notifyBookingEvent(data.assigned_provider_id, 'BOOKING_CANCELLED', bookingId);
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { getFirebaseUuid } from "@/lib/auth";
 
 export async function GET(request: Request) {
@@ -55,8 +55,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Ensure user exists to satisfy foreign key constraint
-    await supabase.from("users").upsert({ id: userId, name: "User" }, { onConflict: "id" });
+    // Ensure user exists to satisfy foreign key constraint without overwriting existing user name
+    const { data: existingUser } = await supabaseAdmin.from("users").select("id").eq("id", userId).maybeSingle();
+    if (!existingUser) {
+      await supabaseAdmin.from("users").insert({ id: userId, name: "Customer" });
+    }
 
     const newLocation = {
       user_id: userId,

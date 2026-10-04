@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { getFirebaseUuid } from "@/lib/auth";
 
 export async function GET(request: Request) {
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
     const uuid = getFirebaseUuid(userId) || userId;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("users")
       .select("*")
       .or(`id.eq.${userId},id.eq.${uuid}`)
@@ -52,15 +52,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "id and name are required" }, { status: 400 });
     }
 
-    const userData = {
+    const userData: Record<string, any> = {
       id,
       name,
-      email: email || null,
-      phone: phone || null,
-      profile_image: profileImage || null,
+      updated_at: new Date().toISOString(),
     };
+    if (email !== undefined) userData.email = email || null;
+    if (phone !== undefined) userData.phone = phone || null;
+    if (profileImage !== undefined) userData.profile_image = profileImage || null;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("users")
       .upsert(userData)
       .select()
@@ -84,4 +85,8 @@ export async function POST(request: Request) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+export async function PUT(request: Request) {
+  return POST(request);
 }

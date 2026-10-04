@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { requireProviderUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
-    const { error: authError, status: authStatus, provider } = await requireProviderUser(request);
+    const { error: authError, status: authStatus, user, provider } = await requireProviderUser(request);
     if (authError || !provider) {
       return NextResponse.json({ error: authError }, { status: authStatus });
     }
@@ -12,11 +12,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const providerId = searchParams.get("providerId");
 
-    if (providerId && providerId !== provider.id) {
+    if (providerId && providerId !== provider.id && providerId !== user.id && (user as any).raw_uid && providerId !== (user as any).raw_uid) {
       return NextResponse.json({ error: "Forbidden: Cannot access earnings of another provider" }, { status: 403 });
     }
 
-    const { data: completedBookings, error } = await supabase
+    const { data: completedBookings, error } = await supabaseAdmin
       .from("bookings")
       .select("id, total, created_at, updated_at")
       .eq("assigned_provider_id", provider.id)
@@ -52,13 +52,26 @@ export async function GET(request: Request) {
 
     // Payout split (80% provider payout rate)
     const providerShareRate = 0.8;
+    const finalTotal = Math.round(totalEarnings * providerShareRate);
+    const finalToday = Math.round(todayEarnings * providerShareRate);
+    const finalWeek = Math.round(weekEarnings * providerShareRate);
 
     return NextResponse.json({
+      today: finalToday,
+      thisWeek: finalWeek,
+      thisMonth: finalTotal,
+      total: finalTotal,
+      completedJobsCount: (completedBookings || []).length,
+      todayJobsCount,
       earnings: {
-        totalEarnings: Math.round(totalEarnings * providerShareRate),
-        todayEarnings: Math.round(todayEarnings * providerShareRate),
-        weekEarnings: Math.round(weekEarnings * providerShareRate),
+        total: finalTotal,
+        today: finalToday,
+        thisWeek: finalWeek,
+        totalEarnings: finalTotal,
+        todayEarnings: finalToday,
+        weekEarnings: finalWeek,
         totalCompletedJobs: (completedBookings || []).length,
+        completedJobsCount: (completedBookings || []).length,
         todayJobsCount,
         payoutRate: "80%",
         currency: "INR",

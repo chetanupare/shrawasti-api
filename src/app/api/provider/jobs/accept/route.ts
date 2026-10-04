@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       .from("bookings")
       .update(updates)
       .eq("id", bookingId)
+      .is("assigned_provider_id", null)
       .select()
       .maybeSingle();
 
