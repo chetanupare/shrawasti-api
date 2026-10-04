@@ -50,6 +50,7 @@ export async function POST() {
       { name: "Ramesh Kumar", phone: "+91 9876543210", email: "ramesh.k@shrawasti.com", rating: 4.9, total_jobs: 42, is_online: true, status: "active" },
       { name: "Suresh Sharma", phone: "+91 9812345678", email: "suresh.s@shrawasti.com", rating: 4.8, total_jobs: 28, is_online: true, status: "active" },
       { name: "Amit Singh", phone: "+91 9765432109", email: "amit.singh@shrawasti.com", rating: 5.0, total_jobs: 15, is_online: false, status: "active" },
+      { name: "Saurabh Meshram", phone: "+91 91111 11111", email: "saurabh.meshram@shrawasti.com", rating: 5.0, total_jobs: 0, is_online: true, status: "active" },
     ];
     const { data: providers, error: pErr } = await supabaseAdmin.from("providers").upsert(initialProviders, { onConflict: "phone" }).select();
     results.providers = pErr ? pErr.message : providers?.length;

@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { requireProviderUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
+    const { error: authError, status: authStatus, provider } = await requireProviderUser(request);
+    if (authError || !provider) {
+      return NextResponse.json({ error: authError }, { status: authStatus });
+    }
+
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "20");
 

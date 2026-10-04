@@ -1,16 +1,30 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { requireProviderUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { providerId, latitude, longitude, heading, speed } = body;
+    const { error: authError, status: authStatus, provider } = await requireProviderUser(request);
+    if (authError || !provider) {
+      return NextResponse.json({ error: authError }, { status: authStatus });
+    }
 
-    if (!providerId || latitude === undefined || longitude === undefined) {
+    const body = await request.json();
+    const { latitude, longitude, heading, speed } = body;
+
+    if (latitude === undefined || longitude === undefined) {
       return NextResponse.json(
-        { error: "providerId, latitude, and longitude fields are required" },
+        { error: "latitude and longitude fields are required" },
         { status: 400 }
       );
+    }
+
+    if (typeof latitude !== 'number' || latitude < -90 || latitude > 90) {
+      return NextResponse.json({ error: "Invalid latitude" }, { status: 422 });
+    }
+
+    if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
+      return NextResponse.json({ error: "Invalid longitude" }, { status: 422 });
     }
 
     const locationUpdate = {
@@ -24,7 +38,7 @@ export async function POST(request: Request) {
     const { error } = await supabase
       .from("providers")
       .update(locationUpdate)
-      .eq("id", providerId);
+      .eq("id", provider.id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -32,7 +46,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      providerId,
+      providerId: provider.id,
       location: { latitude, longitude, heading, speed },
       timestamp: locationUpdate.updated_at,
     });
@@ -43,17 +57,15 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const providerId = searchParams.get("providerId");
-
-    if (!providerId) {
-      return NextResponse.json({ error: "providerId parameter is required" }, { status: 400 });
+    const { error: authError, status: authStatus, provider } = await requireProviderUser(request);
+    if (authError || !provider) {
+      return NextResponse.json({ error: authError }, { status: authStatus });
     }
 
     const { data, error } = await supabase
       .from("providers")
       .select("id, current_lat, current_lng, heading, speed, updated_at")
-      .eq("id", providerId)
+      .eq("id", provider.id)
       .maybeSingle();
 
     if (error) {

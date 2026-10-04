@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { requireProviderUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { providerId, isOnline, status } = body;
+    const { error: authError, status: authStatus, provider } = await requireProviderUser(request);
+    if (authError || !provider) {
+      return NextResponse.json({ error: authError }, { status: authStatus });
+    }
 
-    if (!providerId || isOnline === undefined) {
+    const body = await request.json();
+    const { isOnline, status } = body;
+
+    if (isOnline === undefined) {
       return NextResponse.json(
-        { error: "providerId and isOnline fields are required" },
+        { error: "isOnline field is required" },
         { status: 400 }
       );
     }
@@ -22,7 +28,7 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from("providers")
       .update(updates)
-      .eq("id", providerId)
+      .eq("id", provider.id)
       .select()
       .maybeSingle();
 
@@ -37,7 +43,7 @@ export async function POST(request: Request) {
         isOnline: data.is_online,
         status: data.status,
         updatedAt: data.updated_at,
-      } : { providerId, isOnline, status: updates.status },
+      } : { providerId: provider.id, isOnline, status: updates.status },
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

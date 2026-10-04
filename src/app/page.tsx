@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 import {
   Box,
   Flex,
@@ -30,6 +33,7 @@ import {
   Terminal,
   RefreshCw,
   Plus,
+  Minus,
   CheckCircle2,
   Database,
   DollarSign,
@@ -47,6 +51,11 @@ import {
   Eye,
   SlidersHorizontal,
   Bike,
+  Ticket,
+  Star,
+  Bell,
+  Percent,
+  LogOut,
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -58,14 +67,21 @@ export default function AdminDashboard() {
     | "services"
     | "slots"
     | "vehicles"
+    | "coupons"
+    | "subscriptions"
+    | "reviews"
+    | "notifications"
     | "health"
     | "api"
   >("overview");
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const router = useRouter();
   
   // Real-time Search & Filter inputs
   const [globalSearch, setGlobalSearch] = useState("");
@@ -97,6 +113,27 @@ export default function AdminDashboard() {
   const [services, setServices] = useState<any[]>([]);
   const [slots, setSlots] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
+
+
+  // New Module States
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [userSubscriptions, setUserSubscriptions] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [deviceTokens, setDeviceTokens] = useState<any[]>([]);
+  const [broadcastHistory, setBroadcastHistory] = useState<any[]>([]);
+
+  // Modals for Coupon, Plan, Broadcast
+  const [showCouponModal, setShowCouponModal] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState<any | null>(null);
+  const [couponForm, setCouponForm] = useState({ code: "", description: "", discountType: "fixed", discountValue: 100, minOrderAmount: 299, maxDiscountAmount: 500, maxRedemptions: 100, isActive: true });
+
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<any | null>(null);
+  const [planForm, setPlanForm] = useState({ name: "", description: "", basePrice: 899, validityDays: "30", popular: false, isActive: true });
+
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastForm, setBroadcastForm] = useState({ title: "", message: "", targetAudience: "all" });
 
   // API console tester
   const [apiEndpoint, setApiEndpoint] = useState("/api/admin/bookings");
@@ -154,14 +191,22 @@ export default function AdminDashboard() {
         servicesRes,
         slotsRes,
         vehiclesRes,
+        couponsRes,
+        subsRes,
+        reviewsRes,
+        notifsRes,
       ] = await Promise.all([
-        fetch("/api/admin/dashboard/stats").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/admin/bookings").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/admin/users").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/admin/providers").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/admin/services").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/admin/slots").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/admin/vehicles/catalog").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/dashboard/stats").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/bookings").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/users").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/providers").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/services").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/slots").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/vehicles/catalog").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/coupons").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/subscriptions").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/reviews").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/notifications/broadcast").then((r) => r.json()).catch(() => ({})),
       ]);
 
       if (statsRes.success) setStats(statsRes.stats);
@@ -172,9 +217,18 @@ export default function AdminDashboard() {
       setServices(Array.isArray(servicesRes) ? servicesRes : servicesRes.services || []);
       setSlots(Array.isArray(slotsRes) ? slotsRes : slotsRes.slots || []);
       setVehicles(Array.isArray(vehiclesRes) ? vehiclesRes : vehiclesRes.catalog || vehiclesRes.vehicles || []);
+      setCoupons(Array.isArray(couponsRes) ? couponsRes : couponsRes.coupons || []);
+      setSubscriptions(Array.isArray(subsRes) ? subsRes : subsRes.plans || []);
+      setUserSubscriptions(Array.isArray(subsRes?.userSubscriptions) ? subsRes.userSubscriptions : []);
+      setReviews(Array.isArray(reviewsRes) ? reviewsRes : reviewsRes.reviews || []);
+      setDeviceTokens(Array.isArray(notifsRes?.deviceTokens) ? notifsRes.deviceTokens : []);
+      setBroadcastHistory(Array.isArray(notifsRes?.history) ? notifsRes.history : []);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error loading dashboard data:", err);
+      if (err.message && err.message.includes("Forbidden")) {
+        setAuthError("You do not have permission to access the admin dashboard.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -182,12 +236,27 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    fetchAllData();
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+      } else {
+        setAuthChecking(false);
+        fetchAllData();
+      }
+    };
+    checkSession();
+
     const interval = setInterval(() => {
-      fetchAllData();
+      if (!authChecking) fetchAllData();
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [authChecking, router]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   const handleSeedDatabase = async () => {
     setSeeding(true);
@@ -213,7 +282,7 @@ export default function AdminDashboard() {
     try {
       const method = editingVehicle ? "PUT" : "POST";
       const payload = editingVehicle ? { id: editingVehicle.id, ...vehicleForm } : vehicleForm;
-      const res = await fetch("/api/admin/vehicles/catalog", {
+      const res = await authFetch("/api/admin/vehicles/catalog", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -236,7 +305,7 @@ export default function AdminDashboard() {
   const handleDeleteVehicle = async (id: string) => {
     if (!confirm("Are you sure you want to delete this vehicle from catalog?")) return;
     try {
-      const res = await fetch(`/api/admin/vehicles/catalog?id=${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/admin/vehicles/catalog?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         showToast("Vehicle model deleted!");
         fetchAllData(true);
@@ -253,7 +322,7 @@ export default function AdminDashboard() {
     try {
       const method = editingService ? "PUT" : "POST";
       const payload = editingService ? { id: editingService.id, ...serviceForm } : serviceForm;
-      const res = await fetch("/api/admin/services", {
+      const res = await authFetch("/api/admin/services", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -276,7 +345,7 @@ export default function AdminDashboard() {
   const handleDeleteService = async (id: string) => {
     if (!confirm("Are you sure you want to delete this service?")) return;
     try {
-      const res = await fetch(`/api/admin/services?id=${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/admin/services?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         showToast("Service deleted!");
         fetchAllData(true);
@@ -291,7 +360,7 @@ export default function AdminDashboard() {
     try {
       const method = editingProvider ? "PUT" : "POST";
       const payload = editingProvider ? { id: editingProvider.id, ...providerForm } : providerForm;
-      const res = await fetch("/api/admin/providers", {
+      const res = await authFetch("/api/admin/providers", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -314,7 +383,7 @@ export default function AdminDashboard() {
   const handleDeleteProvider = async (id: string) => {
     if (!confirm("Are you sure you want to remove this provider?")) return;
     try {
-      const res = await fetch(`/api/admin/providers?id=${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/admin/providers?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         showToast("Provider removed!");
         fetchAllData(true);
@@ -329,7 +398,7 @@ export default function AdminDashboard() {
     try {
       const method = editingSlot ? "PUT" : "POST";
       const payload = editingSlot ? { id: editingSlot.id, ...slotForm } : slotForm;
-      const res = await fetch("/api/admin/slots", {
+      const res = await authFetch("/api/admin/slots", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -352,7 +421,7 @@ export default function AdminDashboard() {
   const handleDeleteSlot = async (id: string) => {
     if (!confirm("Are you sure you want to delete this time slot?")) return;
     try {
-      const res = await fetch(`/api/admin/slots?id=${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/admin/slots?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         showToast("Time slot deleted!");
         fetchAllData(true);
@@ -362,10 +431,184 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleUpdateSlotCapacity = async (slot: any, newCap: number) => {
+    if (newCap < 1) return;
+    try {
+      const res = await authFetch("/api/admin/slots", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: slot.id,
+          maxCapacity: newCap,
+        }),
+      });
+      if (res.ok) {
+        showToast(`Slot capacity updated to ${newCap}`);
+        fetchAllData(true);
+      } else {
+        showToast("Failed to update slot capacity");
+      }
+    } catch (err) {
+      showToast("Error updating capacity");
+    }
+  };
+
+  const handleToggleSlotStatus = async (slot: any) => {
+    const currentActive = slot.isActive ?? slot.is_active ?? true;
+    const newActive = !currentActive;
+    try {
+      const res = await authFetch("/api/admin/slots", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: slot.id,
+          isActive: newActive,
+        }),
+      });
+      if (res.ok) {
+        showToast(newActive ? "Slot opened for bookings" : "Slot closed");
+        fetchAllData(true);
+      } else {
+        showToast("Failed to toggle slot status");
+      }
+    } catch (err) {
+      showToast("Error toggling slot status");
+    }
+  };
+
+
+  const handleSaveCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const method = editingCoupon ? "PUT" : "POST";
+      const payload = editingCoupon ? { id: editingCoupon.id, ...couponForm } : couponForm;
+      const res = await authFetch("/api/admin/coupons", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        showToast(editingCoupon ? "Coupon updated!" : "New coupon code created!");
+        setShowCouponModal(false);
+        setEditingCoupon(null);
+        setCouponForm({ code: "", description: "", discountType: "fixed", discountValue: 100, minOrderAmount: 299, maxDiscountAmount: 500, maxRedemptions: 100, isActive: true });
+        fetchAllData(true);
+      } else {
+        const data = await res.json();
+        showToast("Error: " + (data.error || "Failed to save coupon"));
+      }
+    } catch (err) {
+      showToast("Failed to save coupon");
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this coupon code?")) return;
+    try {
+      const res = await authFetch(`/api/admin/coupons?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("Coupon code deleted!");
+        fetchAllData(true);
+      }
+    } catch (err) {
+      showToast("Error deleting coupon");
+    }
+  };
+
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const method = editingPlan ? "PUT" : "POST";
+      const payload = editingPlan ? { id: editingPlan.id, ...planForm } : planForm;
+      const res = await authFetch("/api/admin/subscriptions", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        showToast(editingPlan ? "CarePass plan updated!" : "New CarePass plan created!");
+        setShowPlanModal(false);
+        setEditingPlan(null);
+        setPlanForm({ name: "", description: "", basePrice: 899, validityDays: "30", popular: false, isActive: true });
+        fetchAllData(true);
+      } else {
+        const data = await res.json();
+        showToast("Error: " + (data.error || "Failed to save plan"));
+      }
+    } catch (err) {
+      showToast("Failed to save plan");
+    }
+  };
+
+  const handleDeletePlan = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this CarePass plan?")) return;
+    try {
+      const res = await authFetch(`/api/admin/subscriptions?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("CarePass plan deleted!");
+        fetchAllData(true);
+      }
+    } catch (err) {
+      showToast("Error deleting plan");
+    }
+  };
+
+  const handleToggleReviewPublished = async (review: any) => {
+    try {
+      const res = await authFetch("/api/admin/reviews", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: review.id, isPublished: !review.isPublished }),
+      });
+      if (res.ok) {
+        showToast(!review.isPublished ? "Review published!" : "Review hidden");
+        fetchAllData(true);
+      }
+    } catch (err) {
+      showToast("Error toggling review");
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this customer review?")) return;
+    try {
+      const res = await authFetch(`/api/admin/reviews?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast("Review deleted!");
+        fetchAllData(true);
+      }
+    } catch (err) {
+      showToast("Error deleting review");
+    }
+  };
+
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await authFetch("/api/admin/notifications/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(broadcastForm),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`Broadcast notification sent to ${data.recipientsCount || 0} registered devices!`);
+        setShowBroadcastModal(false);
+        setBroadcastForm({ title: "", message: "", targetAudience: "all" });
+        fetchAllData(true);
+      } else {
+        const data = await res.json();
+        showToast("Error: " + (data.error || "Failed to send notification"));
+      }
+    } catch (err) {
+      showToast("Failed to send broadcast");
+    }
+  };
+
   const handleSaveBooking = async () => {
     if (!editingBooking) return;
     try {
-      const res = await fetch("/api/admin/bookings", {
+      const res = await authFetch("/api/admin/bookings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -391,7 +634,7 @@ export default function AdminDashboard() {
   const handleDeleteBooking = async (id: string) => {
     if (!confirm("Are you sure you want to delete this booking record?")) return;
     try {
-      const res = await fetch(`/api/admin/bookings?id=${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/admin/bookings?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         showToast("Booking record deleted!");
         fetchAllData(true);
@@ -405,7 +648,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!editingUser) return;
     try {
-      const res = await fetch(`/api/admin/users/${editingUser.id}`, {
+      const res = await authFetch(`/api/admin/users/${editingUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userForm),
@@ -427,7 +670,7 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (id: string) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
     try {
-      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/admin/users/${id}`, { method: "DELETE" });
       if (res.ok) {
         showToast("User account deleted!");
         fetchAllData(true);
@@ -441,7 +684,7 @@ export default function AdminDashboard() {
     setApiTesting(true);
     setApiResponse(null);
     try {
-      const res = await fetch(apiEndpoint, { method: apiMethod });
+      const res = await authFetch(apiEndpoint, { method: apiMethod });
       const data = await res.json();
       setApiResponse({ status: res.status, ok: res.ok, data });
     } catch (err: any) {
@@ -512,8 +755,8 @@ export default function AdminDashboard() {
       matchesVehicle = !is2W;
     }
 
-    const bType = (s.bodyType || s.body_type || "all").toLowerCase();
-    const matchesBody = serviceBodyTypeFilter === "all" || bType.includes(serviceBodyTypeFilter.toLowerCase()) || bType === "all";
+    const bType = (s.bodyType || s.body_type || "").toLowerCase();
+    const matchesBody = serviceBodyTypeFilter === "all" || !bType || bType === "all" || bType.includes(serviceBodyTypeFilter.toLowerCase());
 
     return matchesQuery && matchesVehicle && matchesBody;
   });
@@ -547,6 +790,10 @@ export default function AdminDashboard() {
     { id: "services", label: "Services Catalog", icon: Wrench, count: services.length },
     { id: "slots", label: "Time Slots", icon: Clock, count: slots.length },
     { id: "vehicles", label: "Vehicle Catalog", icon: Car, count: vehicles.length },
+    { id: "coupons", label: "Coupons & Promos", icon: Ticket, count: coupons.length },
+    { id: "subscriptions", label: "CarePass Subscriptions", icon: Sparkles, count: subscriptions.length },
+    { id: "reviews", label: "Customer Reviews", icon: Star, count: reviews.length },
+    { id: "notifications", label: "Broadcast Push", icon: Bell, count: deviceTokens.length },
   ];
 
   const sidebarContent = (
@@ -632,11 +879,49 @@ export default function AdminDashboard() {
           </Button>
         );
       })}
+      
+      <Button
+        mt="auto"
+        mb="4"
+        mx="3"
+        onClick={handleLogout}
+        variant="ghost"
+        justifyContent="flex-start"
+        w="calc(100% - 24px)"
+        h="36px"
+        px="3"
+        borderRadius="lg"
+        color="red.400"
+        _hover={{ bg: "rgba(239, 68, 68, 0.1)", color: "red.300" }}
+      >
+        <HStack>
+          <LogOut size={16} />
+          <Text fontSize="sm">Logout</Text>
+        </HStack>
+      </Button>
     </VStack>
   );
 
   return (
     <Flex minH="100vh" bg="#0B0F19" color="#F8FAFC" flexDir="column" fontFamily="'Inter', sans-serif">
+      {/* Auth Error Overlay */}
+      {authError && (
+        <Flex position="fixed" inset={0} bg="#0B0F19" zIndex={10000} align="center" justify="center" direction="column" p={6} textAlign="center">
+          <ShieldCheck size={48} color="#EF4444" />
+          <Heading mt={4} size="md" color="white">{authError}</Heading>
+          <Text mt={2} color="gray.400">Please log in with an administrator account.</Text>
+          <Button mt={6} colorScheme="blue" onClick={handleLogout}>Sign Out</Button>
+        </Flex>
+      )}
+
+      {/* Full Screen Loading Overlay while checking auth */}
+      {authChecking && (
+        <Flex position="fixed" inset={0} bg="#0B0F19" zIndex={9999} align="center" justify="center" direction="column">
+          <Spinner size="xl" color="blue.500" />
+          <Text mt={4} color="gray.400" fontWeight="500">Checking authorization...</Text>
+        </Flex>
+      )}
+
       {/* Toast Notification */}
       {toastMessage && (
         <Box
@@ -1400,7 +1685,7 @@ export default function AdminDashboard() {
                           <Button
                             key={v.id}
                             size="xs"
-                            onClick={() => setServiceVehicleFilter(v.id)}
+                            onClick={() => { setServiceVehicleFilter(v.id); setServiceBodyTypeFilter("all"); }}
                             bg={serviceVehicleFilter === v.id ? "#2563EB" : "#1E293B"}
                             color={serviceVehicleFilter === v.id ? "#FFFFFF" : "#E2E8F0"}
                             border="1px solid"
@@ -1530,10 +1815,14 @@ export default function AdminDashboard() {
                 {/* TAB 6: SLOTS */}
                 {activeTab === "slots" && (
                   <Stack gap="6">
-                    <Flex justifyContent="space-between" alignItems="center">
-                      <Heading size="xs" color="white" fontWeight="bold">
-                        Slots ({filteredSlots.length})
-                      </Heading>
+                    <Flex justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="3">
+                      <HStack gap="2">
+                        <Clock size={18} color="#C084FC" />
+                        <Heading size="xs" color="white" fontWeight="bold">
+                          Slots ({filteredSlots.length})
+                        </Heading>
+                      </HStack>
+
                       <Button
                         size="xs"
                         colorScheme="purple"
@@ -1547,41 +1836,105 @@ export default function AdminDashboard() {
                       </Button>
                     </Flex>
 
-                    <Grid templateColumns={{ base: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }} gap="3">
-                      {filteredSlots.map((s) => (
-                        <Card.Root key={s.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="3">
-                          <Flex justifyContent="space-between" alignItems="center" mb="2">
-                            <Text fontSize="xs" fontWeight="bold" color="#FFFFFF">
-                              {s.slotTime || s.slot_time || s.time}
-                            </Text>
-                            <Badge colorScheme={s.isActive ?? s.is_available ? "green" : "gray"} fontSize="10px" fontWeight="bold">
-                              {s.isActive ?? s.is_available ? "Open" : "Booked"}
-                            </Badge>
-                          </Flex>
+                    {filteredSlots.length === 0 ? (
+                      <Flex p="8" justifyContent="center" alignItems="center" flexDir="column" gap="3">
+                        <Text color="gray.300" fontSize="sm">
+                          No time slots available. Click "Create Slot" to add one.
+                        </Text>
+                      </Flex>
+                    ) : (
+                      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" }} gap="3">
+                        {filteredSlots.map((s) => {
+                          const cap = s.maxCapacity || s.max_capacity || 10;
+                          const active = s.isActive ?? s.is_active ?? true;
+                          return (
+                            <Card.Root key={s.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="3.5">
+                              <Flex justifyContent="space-between" alignItems="center" mb="3">
+                                <HStack gap="1.5">
+                                  <Clock size={14} color="#A7F3D0" />
+                                  <Text fontSize="xs" fontWeight="bold" color="#FFFFFF">
+                                    {s.slotTime || s.slot_time || s.time}
+                                  </Text>
+                                </HStack>
+                                <Button
+                                  size="2xs"
+                                  onClick={() => handleToggleSlotStatus(s)}
+                                  bg={active ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}
+                                  color={active ? "#6EE7B7" : "#FCA5A5"}
+                                  border="1px solid"
+                                  borderColor={active ? "rgba(52, 211, 153, 0.4)" : "rgba(248, 113, 113, 0.4)"}
+                                  _hover={{ bg: active ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)" }}
+                                  borderRadius="md"
+                                  px="2"
+                                  py="0.5"
+                                  fontSize="10px"
+                                  fontWeight="bold"
+                                >
+                                  {active ? "Active / Open" : "Closed"}
+                                </Button>
+                              </Flex>
 
-                          <Flex justifyContent="space-between" alignItems="center">
-                            <Text fontSize="10px" color="gray.300">
-                              Cap: {s.maxCapacity || 10}
-                            </Text>
-                            <HStack gap="1">
-                              <IconButton
-                                size="xs"
-                                colorScheme="blue"
-                                variant="ghost"
-                                aria-label="Edit slot"
-                                onClick={() => {
-                                  setEditingSlot(s);
-                                  setSlotForm({
-                                    slotTime: s.slotTime || s.slot_time || "",
-                                    maxCapacity: s.maxCapacity || 10,
-                                    isActive: s.isActive ?? true,
-                                  });
-                                  setShowSlotModal(true);
-                                }}
-                              >
-                                <Edit size={12} />
-                              </IconButton>
-                              <IconButton
+                              <Box bg="#1E293B" p="2.5" borderRadius="lg" border="1px solid" borderColor="rgba(255, 255, 255, 0.1)" mb="3">
+                                <Text fontSize="10px" color="gray.400" fontWeight="bold" mb="1.5" textAlign="center">
+                                  SLOT CAPACITY MANAGEMENT
+                                </Text>
+                                <Flex justifyContent="space-between" alignItems="center">
+                                  <Button
+                                    size="xs"
+                                    onClick={() => handleUpdateSlotCapacity(s, cap - 1)}
+                                    disabled={cap <= 1}
+                                    bg="#334155"
+                                    color="white"
+                                    _hover={{ bg: "#475569" }}
+                                    borderRadius="md"
+                                    px="2"
+                                    minW="32px"
+                                    h="28px"
+                                  >
+                                    <Minus size={14} />
+                                  </Button>
+                                  <VStack gap="0" align="center">
+                                    <Text fontSize="md" fontWeight="extrabold" color="#38BDF8">
+                                      {cap}
+                                    </Text>
+                                    <Text fontSize="9px" color="gray.300">
+                                      max bookings
+                                    </Text>
+                                  </VStack>
+                                  <Button
+                                    size="xs"
+                                    onClick={() => handleUpdateSlotCapacity(s, cap + 1)}
+                                    bg="#334155"
+                                    color="white"
+                                    _hover={{ bg: "#475569" }}
+                                    borderRadius="md"
+                                    px="2"
+                                    minW="32px"
+                                    h="28px"
+                                  >
+                                    <Plus size={14} />
+                                  </Button>
+                                </Flex>
+                              </Box>
+
+                              <Flex justifyContent="flex-end" gap="1.5" pt="2" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+                                <Button
+                                  size="xs"
+                                  colorScheme="blue"
+                                  variant="subtle"
+                                  onClick={() => {
+                                    setEditingSlot(s);
+                                    setSlotForm({
+                                      slotTime: s.slotTime || s.slot_time || "",
+                                      maxCapacity: cap,
+                                      isActive: active,
+                                    });
+                                    setShowSlotModal(true);
+                                  }}
+                                >
+                                  <Edit size={12} style={{ marginRight: "4px" }} /> Edit
+                                </Button>
+                                <IconButton
                                   size="xs"
                                   variant="solid"
                                   bg="#DC2626"
@@ -1592,11 +1945,12 @@ export default function AdminDashboard() {
                                 >
                                   <Trash2 size={14} color="#FFFFFF" />
                                 </IconButton>
-                            </HStack>
-                          </Flex>
-                        </Card.Root>
-                      ))}
-                    </Grid>
+                              </Flex>
+                            </Card.Root>
+                          );
+                        })}
+                      </Grid>
+                    )}
                   </Stack>
                 )}
 
@@ -1635,7 +1989,7 @@ export default function AdminDashboard() {
                           <Button
                             key={vc.id}
                             size="xs"
-                            onClick={() => setVehicleCategoryFilter(vc.id)}
+                            onClick={() => { setVehicleCategoryFilter(vc.id); setVehicleBodyTypeFilter("all"); }}
                             bg={vehicleCategoryFilter === vc.id ? "#7C3AED" : "#1E293B"}
                             color={vehicleCategoryFilter === vc.id ? "#FFFFFF" : "#E2E8F0"}
                             border="1px solid"
@@ -1754,6 +2108,394 @@ export default function AdminDashboard() {
                             </Card.Root>
                           );
                         })}
+                      </Grid>
+                    )}
+                  </Stack>
+                )}
+
+                
+                {/* TAB 8: COUPONS & PROMOS */}
+                {activeTab === "coupons" && (
+                  <Stack gap="6">
+                    <Flex justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="3">
+                      <HStack gap="2">
+                        <Ticket size={20} color="#FBBF24" />
+                        <Heading size="xs" color="white" fontWeight="bold">
+                          Coupons & Promo Codes ({coupons.length})
+                        </Heading>
+                      </HStack>
+
+                      <Button
+                        size="xs"
+                        colorScheme="amber"
+                        onClick={() => {
+                          setEditingCoupon(null);
+                          setCouponForm({ code: "", description: "", discountType: "fixed", discountValue: 100, minOrderAmount: 299, maxDiscountAmount: 500, maxRedemptions: 100, isActive: true });
+                          setShowCouponModal(true);
+                        }}
+                      >
+                        <Plus size={14} style={{ marginRight: "4px" }} /> Create Coupon
+                      </Button>
+                    </Flex>
+
+                    {coupons.length === 0 ? (
+                      <Flex p="8" justifyContent="center" alignItems="center" flexDir="column" gap="3">
+                        <Text color="gray.300" fontSize="sm">
+                          No active promo codes. Click "Create Coupon" to add one.
+                        </Text>
+                      </Flex>
+                    ) : (
+                      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap="3">
+                        {coupons.map((c) => (
+                          <Card.Root key={c.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
+                            <Flex justifyContent="space-between" alignItems="flex-start" mb="2">
+                              <Box>
+                                <HStack gap="1.5">
+                                  <Ticket size={16} color="#FBBF24" />
+                                  <Heading size="xs" color="#FDE047" fontWeight="extrabold" letterSpacing="wider">
+                                    {c.code}
+                                  </Heading>
+                                </HStack>
+                                <Text fontSize="11px" color="gray.300" mt="1">
+                                  {c.description || "Special promotional discount code"}
+                                </Text>
+                              </Box>
+                              <Badge colorScheme={c.isActive ? "green" : "gray"} fontSize="10px" fontWeight="bold">
+                                {c.isActive ? "Active" : "Disabled"}
+                              </Badge>
+                            </Flex>
+
+                            <Stack gap="1.5" bg="#1E293B" p="2.5" borderRadius="lg" my="2" fontSize="11px">
+                              <Flex justifyContent="space-between">
+                                <Text color="gray.400">Discount:</Text>
+                                <Text color="#34D399" fontWeight="bold">
+                                  {c.discountType === "percentage" ? `${c.discountValue}% OFF` : `₹${c.discountValue} FLAT OFF`}
+                                </Text>
+                              </Flex>
+                              <Flex justifyContent="space-between">
+                                <Text color="gray.400">Min Booking Amount:</Text>
+                                <Text color="white" fontWeight="bold">₹{c.minOrderAmount}</Text>
+                              </Flex>
+                              <Flex justifyContent="space-between">
+                                <Text color="gray.400">Redemptions:</Text>
+                                <Text color="gray.300">{c.timesRedeemed} / {c.maxRedemptions}</Text>
+                              </Flex>
+                            </Stack>
+
+                            <Flex justifyContent="flex-end" gap="1.5" pt="2" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+                              <Button
+                                size="xs"
+                                colorScheme="blue"
+                                variant="subtle"
+                                onClick={() => {
+                                  setEditingCoupon(c);
+                                  setCouponForm({
+                                    code: c.code,
+                                    description: c.description || "",
+                                    discountType: c.discountType || "fixed",
+                                    discountValue: c.discountValue || 100,
+                                    minOrderAmount: c.minOrderAmount || 0,
+                                    maxDiscountAmount: c.maxDiscountAmount || 1000,
+                                    maxRedemptions: c.maxRedemptions || 100,
+                                    isActive: c.isActive ?? true,
+                                  });
+                                  setShowCouponModal(true);
+                                }}
+                              >
+                                <Edit size={12} style={{ marginRight: "4px" }} /> Edit
+                              </Button>
+                              <IconButton
+                                size="xs"
+                                variant="solid"
+                                bg="#DC2626"
+                                color="#FFFFFF"
+                                _hover={{ bg: "#EF4444" }}
+                                aria-label="Delete coupon"
+                                onClick={() => handleDeleteCoupon(c.id)}
+                              >
+                                <Trash2 size={14} color="#FFFFFF" />
+                              </IconButton>
+                            </Flex>
+                          </Card.Root>
+                        ))}
+                      </Grid>
+                    )}
+                  </Stack>
+                )}
+
+                {/* TAB 9: SUBSCRIPTIONS & CAREPASS */}
+                {activeTab === "subscriptions" && (
+                  <Stack gap="6">
+                    <Flex justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="3">
+                      <HStack gap="2">
+                        <Sparkles size={20} color="#C084FC" />
+                        <Heading size="xs" color="white" fontWeight="bold">
+                          CarePass Plans & User Memberships ({subscriptions.length})
+                        </Heading>
+                      </HStack>
+
+                      <Button
+                        size="xs"
+                        colorScheme="purple"
+                        onClick={() => {
+                          setEditingPlan(null);
+                          setPlanForm({ name: "", description: "", basePrice: 899, validityDays: "30", popular: false, isActive: true });
+                          setShowPlanModal(true);
+                        }}
+                      >
+                        <Plus size={14} style={{ marginRight: "4px" }} /> Create CarePass Plan
+                      </Button>
+                    </Flex>
+
+                    <Heading size="xs" color="gray.300" textTransform="uppercase" letterSpacing="wider">
+                      Available Subscription Plans
+                    </Heading>
+
+                    <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap="3">
+                      {subscriptions.map((p) => (
+                        <Card.Root key={p.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
+                          <Flex justifyContent="space-between" alignItems="flex-start" mb="2">
+                            <Box>
+                              <HStack gap="1.5">
+                                <Sparkles size={16} color="#C084FC" />
+                                <Heading size="xs" color="#FFFFFF" fontWeight="bold">
+                                  {p.name}
+                                </Heading>
+                              </HStack>
+                              <Text fontSize="11px" color="gray.400" mt="1">
+                                {p.description || "Monthly vehicle care membership plan"}
+                              </Text>
+                            </Box>
+                            {p.popular && (
+                              <Badge colorScheme="amber" fontSize="9px" fontWeight="bold">
+                                POPULAR
+                              </Badge>
+                            )}
+                          </Flex>
+
+                          <Text fontSize="lg" fontWeight="extrabold" color="#C084FC" my="2">
+                            ₹{p.basePrice} <Text as="span" fontSize="xs" fontWeight="normal" color="gray.400">/ {p.validityDays} days</Text>
+                          </Text>
+
+                          <VStack align="stretch" gap="1" bg="#1E293B" p="2.5" borderRadius="lg" my="2" fontSize="11px">
+                            {(p.benefits || []).map((b: string, i: number) => (
+                              <HStack key={i} gap="1.5">
+                                <Check size={12} color="#34D399" />
+                                <Text color="gray.300">{b}</Text>
+                              </HStack>
+                            ))}
+                          </VStack>
+
+                          <Flex justifyContent="flex-end" gap="1.5" pt="2" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+                            <Button
+                              size="xs"
+                              colorScheme="blue"
+                              variant="subtle"
+                              onClick={() => {
+                                setEditingPlan(p);
+                                setPlanForm({
+                                  name: p.name,
+                                  description: p.description || "",
+                                  basePrice: p.basePrice || 899,
+                                  validityDays: String(p.validityDays || "30"),
+                                  popular: p.popular ?? false,
+                                  isActive: p.isActive ?? true,
+                                });
+                                setShowPlanModal(true);
+                              }}
+                            >
+                              <Edit size={12} style={{ marginRight: "4px" }} /> Edit
+                            </Button>
+                            <IconButton
+                              size="xs"
+                              variant="solid"
+                              bg="#DC2626"
+                              color="#FFFFFF"
+                              _hover={{ bg: "#EF4444" }}
+                              aria-label="Delete plan"
+                              onClick={() => handleDeletePlan(p.id)}
+                            >
+                              <Trash2 size={14} color="#FFFFFF" />
+                            </IconButton>
+                          </Flex>
+                        </Card.Root>
+                      ))}
+                    </Grid>
+
+                    <Heading size="xs" color="gray.300" textTransform="uppercase" letterSpacing="wider" mt="4">
+                      Active Customer Memberships ({userSubscriptions.length})
+                    </Heading>
+
+                    {userSubscriptions.length === 0 ? (
+                      <Text fontSize="xs" color="gray.400">No active customer subscriptions found.</Text>
+                    ) : (
+                      <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" overflow="hidden">
+                        <Table.Root size="sm" variant="line">
+                          <Table.Header bg="#1E293B">
+                            <Table.Row>
+                              <Table.ColumnHeader color="gray.300">User ID</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.300">Plan</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.300">Billing Period</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.300">Status</Table.ColumnHeader>
+                              <Table.ColumnHeader color="gray.300">Start Date</Table.ColumnHeader>
+                            </Table.Row>
+                          </Table.Header>
+                          <Table.Body>
+                            {userSubscriptions.map((us) => (
+                              <Table.Row key={us.id}>
+                                <Table.Cell color="white" fontSize="xs" fontWeight="bold">{us.userId?.substring(0, 12)}</Table.Cell>
+                                <Table.Cell color="gray.300" fontSize="xs">{us.snapshotPlanName}</Table.Cell>
+                                <Table.Cell color="gray.300" fontSize="xs">{us.billingPeriod}</Table.Cell>
+                                <Table.Cell>
+                                  <Badge colorScheme={us.status === "active" ? "green" : "amber"} fontSize="10px">
+                                    {us.status}
+                                  </Badge>
+                                </Table.Cell>
+                                <Table.Cell color="gray.400" fontSize="11px">{us.currentPeriodStart ? new Date(us.currentPeriodStart).toLocaleDateString() : "N/A"}</Table.Cell>
+                              </Table.Row>
+                            ))}
+                          </Table.Body>
+                        </Table.Root>
+                      </Card.Root>
+                    )}
+                  </Stack>
+                )}
+
+                {/* TAB 10: CUSTOMER REVIEWS */}
+                {activeTab === "reviews" && (
+                  <Stack gap="6">
+                    <HStack gap="2">
+                      <Star size={20} color="#FBBF24" />
+                      <Heading size="xs" color="white" fontWeight="bold">
+                        Customer Ratings & Reviews ({reviews.length})
+                      </Heading>
+                    </HStack>
+
+                    {reviews.length === 0 ? (
+                      <Flex p="8" justifyContent="center" alignItems="center" flexDir="column" gap="3">
+                        <Text color="gray.300" fontSize="sm">
+                          No customer reviews submitted yet.
+                        </Text>
+                      </Flex>
+                    ) : (
+                      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap="3">
+                        {reviews.map((r) => (
+                          <Card.Root key={r.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
+                            <Flex justifyContent="space-between" alignItems="center" mb="2">
+                              <HStack gap="1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    size={14}
+                                    color={star <= r.rating ? "#FBBF24" : "#475569"}
+                                    fill={star <= r.rating ? "#FBBF24" : "transparent"}
+                                  />
+                                ))}
+                              </HStack>
+                              <Button
+                                size="xs"
+                                onClick={() => handleToggleReviewPublished(r)}
+                                bg={r.isPublished ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}
+                                color={r.isPublished ? "#6EE7B7" : "#FCA5A5"}
+                                border="1px solid"
+                                borderColor={r.isPublished ? "rgba(52, 211, 153, 0.4)" : "rgba(248, 113, 113, 0.4)"}
+                                borderRadius="md"
+                                px="2"
+                                fontSize="10px"
+                                fontWeight="bold"
+                              >
+                                {r.isPublished ? "Published" : "Hidden"}
+                              </Button>
+                            </Flex>
+
+                            <Text fontSize="xs" color="white" my="2" fontStyle="italic">
+                              "{r.comment || "Great service overall!"}"
+                            </Text>
+
+                            <Flex justifyContent="space-between" alignItems="center" pt="2" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+                              <Text fontSize="10px" color="gray.400">
+                                {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "Recent"}
+                              </Text>
+                              <IconButton
+                                size="xs"
+                                variant="solid"
+                                bg="#DC2626"
+                                color="#FFFFFF"
+                                _hover={{ bg: "#EF4444" }}
+                                aria-label="Delete review"
+                                onClick={() => handleDeleteReview(r.id)}
+                              >
+                                <Trash2 size={14} color="#FFFFFF" />
+                              </IconButton>
+                            </Flex>
+                          </Card.Root>
+                        ))}
+                      </Grid>
+                    )}
+                  </Stack>
+                )}
+
+                {/* TAB 11: BROADCAST PUSH NOTIFICATIONS */}
+                {activeTab === "notifications" && (
+                  <Stack gap="6">
+                    <Flex justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="3">
+                      <HStack gap="2">
+                        <Bell size={20} color="#60A5FA" />
+                        <Heading size="xs" color="white" fontWeight="bold">
+                          Broadcast Push Notifications & Registered Devices ({deviceTokens.length})
+                        </Heading>
+                      </HStack>
+
+                      <Button
+                        size="xs"
+                        colorScheme="blue"
+                        onClick={() => {
+                          setBroadcastForm({ title: "", message: "", targetAudience: "all" });
+                          setShowBroadcastModal(true);
+                        }}
+                      >
+                        <Send size={14} style={{ marginRight: "4px" }} /> Compose Broadcast
+                      </Button>
+                    </Flex>
+
+                    <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
+                      <HStack gap="3">
+                        <Bell size={24} color="#38BDF8" />
+                        <Box>
+                          <Heading size="xs" color="white" fontWeight="bold">Active Devices Connected</Heading>
+                          <Text fontSize="xs" color="gray.300">
+                            Total {deviceTokens.length} active Expo & FCM device tokens registered from mobile users.
+                          </Text>
+                        </Box>
+                      </HStack>
+                    </Card.Root>
+
+                    <Heading size="xs" color="gray.300" textTransform="uppercase" letterSpacing="wider">
+                      Broadcast Notification History ({broadcastHistory.length})
+                    </Heading>
+
+                    {broadcastHistory.length === 0 ? (
+                      <Text fontSize="xs" color="gray.400">No broadcast messages sent yet.</Text>
+                    ) : (
+                      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }} gap="3">
+                        {broadcastHistory.map((h) => (
+                          <Card.Root key={h.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
+                            <Flex justifyContent="space-between" alignItems="flex-start" mb="2">
+                              <Heading size="xs" color="#38BDF8" fontWeight="bold">
+                                {h.title}
+                              </Heading>
+                              <Badge colorScheme="blue" fontSize="9px">
+                                {h.recipientsCount} Devices
+                              </Badge>
+                            </Flex>
+                            <Text fontSize="xs" color="gray.300" mb="2">
+                              {h.body}
+                            </Text>
+                            <Text fontSize="10px" color="gray.400">
+                              Sent: {h.sentAt ? new Date(h.sentAt).toLocaleString() : "Recently"}
+                            </Text>
+                          </Card.Root>
+                        ))}
                       </Grid>
                     )}
                   </Stack>
@@ -2087,8 +2829,69 @@ export default function AdminDashboard() {
             <form onSubmit={handleSaveSlot}>
               <Stack gap="4">
                 <Box>
-                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Time Slot</Text>
-                  <Input required value={slotForm.slotTime} onChange={(e) => setSlotForm({ ...slotForm, slotTime: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Time Slot Range</Text>
+                  <Input required value={slotForm.slotTime} onChange={(e) => setSlotForm({ ...slotForm, slotTime: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="09:00 AM - 10:00 AM" />
+                </Box>
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Maximum Booking Capacity</Text>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    required
+                    value={slotForm.maxCapacity}
+                    onChange={(e) => setSlotForm({ ...slotForm, maxCapacity: parseInt(e.target.value) || 1 })}
+                    bg="#1E293B"
+                    color="#FFFFFF"
+                    borderRadius="lg"
+                    placeholder="10"
+                    mb="2"
+                  />
+                  <Text fontSize="10px" color="gray.400" mb="1">Quick capacity presets:</Text>
+                  <HStack gap="1.5" flexWrap="wrap">
+                    {[5, 10, 15, 20, 25, 50].map((presetCap) => (
+                      <Button
+                        key={presetCap}
+                        size="2xs"
+                        type="button"
+                        onClick={() => setSlotForm({ ...slotForm, maxCapacity: presetCap })}
+                        bg={slotForm.maxCapacity === presetCap ? "#7C3AED" : "#1E293B"}
+                        color={slotForm.maxCapacity === presetCap ? "#FFFFFF" : "#CBD5E1"}
+                        border="1px solid"
+                        borderColor={slotForm.maxCapacity === presetCap ? "#8B5CF6" : "rgba(255, 255, 255, 0.2)"}
+                        borderRadius="md"
+                        px="2.5"
+                        py="1"
+                      >
+                        {presetCap} max
+                      </Button>
+                    ))}
+                  </HStack>
+                </Box>
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Slot Status</Text>
+                  <HStack gap="2">
+                    <Button
+                      size="xs"
+                      type="button"
+                      onClick={() => setSlotForm({ ...slotForm, isActive: true })}
+                      variant={slotForm.isActive ? "solid" : "outline"}
+                      colorScheme={slotForm.isActive ? "green" : "gray"}
+                      flex="1"
+                    >
+                      Active / Open
+                    </Button>
+                    <Button
+                      size="xs"
+                      type="button"
+                      onClick={() => setSlotForm({ ...slotForm, isActive: false })}
+                      variant={!slotForm.isActive ? "solid" : "outline"}
+                      colorScheme={!slotForm.isActive ? "red" : "gray"}
+                      flex="1"
+                    >
+                      Closed / Full
+                    </Button>
+                  </HStack>
                 </Box>
                 <Flex justifyContent="flex-end" gap="3" pt="4">
                   <Button variant="ghost" color="gray.300" onClick={() => setShowSlotModal(false)}>Cancel</Button>
@@ -2151,6 +2954,98 @@ export default function AdminDashboard() {
                 <Button colorScheme="purple" onClick={handleSaveBooking}>Update Booking</Button>
               </Flex>
             </Stack>
+          </Box>
+        </Flex>
+      )}
+
+
+      {/* 7. Coupon Modal */}
+      {showCouponModal && (
+        <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
+          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+            <Heading size="md" color="white" mb="4">
+              {editingCoupon ? "Edit Coupon Code" : "Create Coupon Code"}
+            </Heading>
+            <form onSubmit={handleSaveCoupon}>
+              <Stack gap="4">
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Coupon Code (Uppercase)</Text>
+                  <Input required value={couponForm.code} onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="SUMMER50" />
+                </Box>
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Description</Text>
+                  <Input value={couponForm.description} onChange={(e) => setCouponForm({ ...couponForm, description: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="Flat ₹100 off on detailing" />
+                </Box>
+                <Grid templateColumns="repeat(2, 1fr)" gap="3">
+                  <Box>
+                    <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Discount Value</Text>
+                    <Input type="number" required value={couponForm.discountValue} onChange={(e) => setCouponForm({ ...couponForm, discountValue: Number(e.target.value) })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  </Box>
+                  <Box>
+                    <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Min Booking (₹)</Text>
+                    <Input type="number" value={couponForm.minOrderAmount} onChange={(e) => setCouponForm({ ...couponForm, minOrderAmount: Number(e.target.value) })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  </Box>
+                </Grid>
+                <Flex justifyContent="flex-end" gap="3" pt="4">
+                  <Button variant="ghost" color="gray.300" onClick={() => setShowCouponModal(false)}>Cancel</Button>
+                  <Button colorScheme="amber" type="submit">Save Coupon</Button>
+                </Flex>
+              </Stack>
+            </form>
+          </Box>
+        </Flex>
+      )}
+
+      {/* 8. CarePass Plan Modal */}
+      {showPlanModal && (
+        <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
+          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+            <Heading size="md" color="white" mb="4">
+              {editingPlan ? "Edit CarePass Plan" : "Create CarePass Plan"}
+            </Heading>
+            <form onSubmit={handleSavePlan}>
+              <Stack gap="4">
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Plan Name</Text>
+                  <Input required value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="Shrawasti CarePass Platinum" />
+                </Box>
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Base Monthly Price (₹)</Text>
+                  <Input type="number" required value={planForm.basePrice} onChange={(e) => setPlanForm({ ...planForm, basePrice: Number(e.target.value) })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                </Box>
+                <Flex justifyContent="flex-end" gap="3" pt="4">
+                  <Button variant="ghost" color="gray.300" onClick={() => setShowPlanModal(false)}>Cancel</Button>
+                  <Button colorScheme="purple" type="submit">Save Plan</Button>
+                </Flex>
+              </Stack>
+            </form>
+          </Box>
+        </Flex>
+      )}
+
+      {/* 9. Broadcast Push Modal */}
+      {showBroadcastModal && (
+        <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
+          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+            <Heading size="md" color="white" mb="4">
+              Compose Broadcast Push Notification
+            </Heading>
+            <form onSubmit={handleSendBroadcast}>
+              <Stack gap="4">
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Title</Text>
+                  <Input required value={broadcastForm.title} onChange={(e) => setBroadcastForm({ ...broadcastForm, title: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="Weekend Special Offer! 🧼" />
+                </Box>
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Message Body</Text>
+                  <Input required value={broadcastForm.message} onChange={(e) => setBroadcastForm({ ...broadcastForm, message: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="Get 20% off on vehicle detailing this weekend!" />
+                </Box>
+                <Flex justifyContent="flex-end" gap="3" pt="4">
+                  <Button variant="ghost" color="gray.300" onClick={() => setShowBroadcastModal(false)}>Cancel</Button>
+                  <Button colorScheme="blue" type="submit">Send Broadcast</Button>
+                </Flex>
+              </Stack>
+            </form>
           </Box>
         </Flex>
       )}

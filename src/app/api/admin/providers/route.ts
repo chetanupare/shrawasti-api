@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { requireAdminUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
+    const { error: authError, status: authStatus } = await requireAdminUser(request);
+    if (authError) {
+      return NextResponse.json({ error: authError }, { status: authStatus });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 

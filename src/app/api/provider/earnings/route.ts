@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { requireProviderUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
+    const { error: authError, status: authStatus, provider } = await requireProviderUser(request);
+    if (authError || !provider) {
+      return NextResponse.json({ error: authError }, { status: authStatus });
+    }
+
     const { searchParams } = new URL(request.url);
     const providerId = searchParams.get("providerId");
 
-    if (!providerId) {
-      return NextResponse.json({ error: "providerId parameter is required" }, { status: 400 });
+    if (providerId && providerId !== provider.id) {
+      return NextResponse.json({ error: "Forbidden: Cannot access earnings of another provider" }, { status: 403 });
     }
 
     const { data: completedBookings, error } = await supabase
       .from("bookings")
       .select("id, total, created_at, updated_at")
-      .eq("assigned_provider_id", providerId)
+      .eq("assigned_provider_id", provider.id)
       .eq("status", "completed");
 
     if (error) {

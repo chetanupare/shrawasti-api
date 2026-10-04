@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export async function POST(request: Request) {
   try {
@@ -10,8 +10,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "userId and token are required" }, { status: 400 });
     }
 
-    const { data, error } = await supabase
-      .from("user_device_tokens")
+    const { data, error } = await supabaseAdmin
+      .from("device_tokens")
       .upsert(
         {
           user_id: userId,
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
           is_active: true,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "token" }
+        { onConflict: "user_id, token" }
       )
       .select()
       .single();
@@ -44,9 +44,9 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "token parameter is required" }, { status: 400 });
     }
 
-    const { error } = await supabase
-      .from("user_device_tokens")
-      .update({ is_active: false })
+    const { error } = await supabaseAdmin
+      .from("device_tokens")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq("token", token);
 
     if (error) {

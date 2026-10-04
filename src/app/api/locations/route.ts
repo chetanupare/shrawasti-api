@@ -45,12 +45,15 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { userId, label, latitude, longitude, address, buildingName, houseNumber, landmark } = body;
 
-    if (!userId || latitude === undefined || longitude === undefined || !address || !buildingName) {
+    if (!userId || latitude === undefined || longitude === undefined || !address) {
       return NextResponse.json(
-        { error: "Missing required location fields (userId, latitude, longitude, address, buildingName)" },
+        { error: "Missing required location fields (userId, latitude, longitude, address)" },
         { status: 400 }
       );
     }
+
+    // Ensure user exists to satisfy foreign key constraint
+    await supabase.from("users").upsert({ id: userId, name: "User" }, { onConflict: "id" });
 
     const newLocation = {
       user_id: userId,
@@ -58,7 +61,7 @@ export async function POST(request: Request) {
       latitude,
       longitude,
       address,
-      building_name: buildingName,
+      building_name: (buildingName && buildingName.trim() !== '') ? buildingName.trim() : (address ? address.split(',')[0] : 'Location'),
       house_number: houseNumber || null,
       landmark: landmark || null,
     };

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
+import { calcTotals, getPriceFor, Service } from "@/lib/pricing";
 
 export async function GET(request: Request) {
   try {
@@ -52,9 +53,20 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Missing authentication" }, { status: 401 });
+    }
+    const token = authHeader.split(" ")[1];
+    const { data: authData, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !authData.user) {
+      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 });
+    }
+    
+    const trueUserId = authData.user.id;
     const body = await request.json();
     const {
-      userId,
       vehicleId,
       locationSnapshot,
       vehicleSnapshot,
@@ -62,67 +74,161 @@ export async function POST(request: Request) {
       scheduleDate,
       scheduleTime,
       paymentMethod,
-      subtotal,
-      discount,
-      total,
       idempotencyKey,
     } = body;
 
-    if (!userId || !locationSnapshot || !vehicleSnapshot || !services || !scheduleDate || !scheduleTime || total === undefined) {
-      return NextResponse.json(
-        { error: "Missing required booking details" },
-        { status: 400 }
-      );
+    if (!locationSnapshot || !vehicleSnapshot || !services || !scheduleDate || !scheduleTime) {
+      return NextResponse.json({ error: "Missing required booking details" }, { status: 400 });
+    }
+    
+    // Check Idempotency
+    if (idempotencyKey) {
+      const { data: existing } = await supabaseAdmin
+        .from("bookings")
+        .select("*")
+        .eq("idempotency_key", idempotencyKey)
+        .eq("user_id", trueUserId)
+        .maybeSingle();
+        
+      if (existing) {
+        return NextResponse.json({ 
+          booking: {
+            id: existing.id,
+            userId: existing.user_id,
+            status: existing.status,
+            total: existing.total
+          }, 
+          message: "Existing intent returned" 
+        });
+      }
     }
 
+    // Authoritative Pricing Calculation
+    const fullServices: Service[] = [];
+    let discount = 0;
+    
+    for (const s of services) {
+      const { data: svcData } = await supabaseAdmin
+        .from("services")
+        .select("*")
+        .eq("id", s.serviceId || s.id)
+        .single();
+      
+      if (svcData) {
+        fullServices.push({
+          id: svcData.id,
+          name: svcData.name,
+          basePrice: svcData.base_price,
+          category: svcData.category,
+          isActive: svcData.is_active,
+          createdAt: svcData.created_at,
+          updatedAt: svcData.updated_at,
+          prices: svcData.prices
+        });
+      }
+    }
+    
+    const bodyType = vehicleSnapshot?.bodyType || (vehicleSnapshot?.type === '2W' ? 'bike' : undefined);
+    
+    // Build authoritative snapshots
+    const authoritativeServicesSnapshot = fullServices.map(s => ({
+      serviceId: s.id,
+      name: s.name,
+      price: getPriceFor(s, bodyType) ?? s.basePrice ?? 0
+    }));
+    const { subtotal, total } = calcTotals(fullServices, bodyType);
+
+    const isOnline = paymentMethod === "online" || paymentMethod === "card" || paymentMethod === "upi";
+    const initialStatus = isOnline ? "pending" : "confirmed";
+    const initialPaymentStatus = "pending";
+
     const newBooking = {
-      user_id: userId,
+      user_id: trueUserId,
       vehicle_id: vehicleId || null,
       location_snapshot: locationSnapshot,
       vehicle_snapshot: vehicleSnapshot,
-      services: services,
+      services: authoritativeServicesSnapshot, // Authoritative structure
       schedule_date: scheduleDate,
       schedule_time: scheduleTime,
       payment_method: paymentMethod || "online",
-      payment_status: paymentMethod === "cash" || paymentMethod === "after_service" ? "pending" : "pending",
-      subtotal: subtotal || total,
-      discount: discount || 0,
+      payment_status: initialPaymentStatus,
+      subtotal: subtotal,
+      discount: discount,
       total: total,
-      status: "pending",
+      status: initialStatus,
       idempotency_key: idempotencyKey || null,
     };
 
-    const { data, error } = await supabase
+    const { data: savedBooking, error: insertError } = await supabaseAdmin
       .from("bookings")
       .insert(newBooking)
       .select()
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (insertError) {
+      // If uniqueness violation on idempotency_key happens exactly here due to race
+      if (insertError.code === '23505') {
+         const { data: existing } = await supabaseAdmin.from("bookings").select("*").eq("idempotency_key", idempotencyKey).single();
+         if (existing) {
+           return NextResponse.json({ booking: { id: existing.id, status: existing.status } });
+         }
+      }
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+
+    if (initialStatus === "confirmed") {
+      const { notifyBookingEvent } = require("@/lib/notifications");
+      notifyBookingEvent(trueUserId, "BOOKING_CONFIRMED", savedBooking.id);
+    }
+
+    let razorpayOrder = null;
+    if (isOnline && total > 0) {
+      const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      
+      if (keyId && keySecret) {
+        const authBase64 = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+        const orderRes = await fetch("https://api.razorpay.com/v1/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Basic ${authBase64}` },
+          body: JSON.stringify({
+            amount: Math.round(total * 100),
+            currency: "INR",
+            receipt: savedBooking.id.substring(0, 40),
+            notes: { bookingId: savedBooking.id }
+          }),
+        });
+        
+        if (orderRes.ok) {
+          razorpayOrder = await orderRes.json();
+          // Create payment record
+          await supabaseAdmin.from("payments").insert({
+            booking_id: savedBooking.id,
+            user_id: trueUserId,
+            razorpay_order_id: razorpayOrder.id,
+            amount: total,
+            method: paymentMethod || "online",
+            status: "pending"
+          });
+        }
+      }
     }
 
     return NextResponse.json(
       {
         booking: {
-          id: data.id,
-          userId: data.user_id,
-          vehicleId: data.vehicle_id,
-          locationSnapshot: data.location_snapshot,
-          vehicleSnapshot: data.vehicle_snapshot,
-          services: data.services,
-          scheduleDate: data.schedule_date,
-          scheduleTime: data.schedule_time,
-          paymentMethod: data.payment_method,
-          paymentStatus: data.payment_status,
-          subtotal: data.subtotal,
-          discount: data.discount,
-          total: data.total,
-          status: data.status,
-          idempotencyKey: data.idempotency_key,
-          createdAt: data.created_at,
-          updatedAt: data.updated_at,
+          id: savedBooking.id,
+          userId: savedBooking.user_id,
+          status: savedBooking.status,
+          paymentStatus: savedBooking.payment_status,
+          total: savedBooking.total
         },
+        razorpayOrder: razorpayOrder ? {
+          id: razorpayOrder.id,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency,
+          keyId: process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+        } : null
       },
       { status: 201 }
     );
