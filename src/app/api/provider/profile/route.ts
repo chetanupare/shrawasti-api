@@ -10,10 +10,10 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const providerId = searchParams.get("providerId");
+    const providerId = searchParams.get("providerId") || searchParams.get("phone");
 
     if (!providerId) {
-      return NextResponse.json({ error: "providerId parameter is required" }, { status: 400 });
+      return NextResponse.json({ error: "providerId or phone parameter is required" }, { status: 400 });
     }
 
     const authPhone = user.phone || user.user_metadata?.phone || "";
