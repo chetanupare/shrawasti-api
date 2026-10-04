@@ -11,6 +11,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const providerId = searchParams.get("providerId") || searchParams.get("phone");
+    console.log("[ProviderProfile API] providerId search:", providerId);
 
     if (!providerId) {
       return NextResponse.json({ error: "providerId or phone parameter is required" }, { status: 400 });
