@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { requireAuthenticatedUser } from "@/lib/auth";
+import { queryProviderByPhoneOrId } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
@@ -11,78 +12,41 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const providerId = searchParams.get("providerId") || searchParams.get("phone");
-    console.log("[ProviderProfile API] providerId search:", providerId);
 
     if (!providerId) {
       return NextResponse.json({ error: "providerId or phone parameter is required" }, { status: 400 });
     }
 
-    const authPhone = user.phone || user.user_metadata?.phone || "";
-    const cleanAuthPhone = authPhone.replace(/\D/g, "");
-    const cleanReqId = providerId.replace(/\D/g, "");
-
-    const isAuthorized =
-      providerId === user.id ||
-      cleanReqId.length >= 10 ||
-      (cleanAuthPhone && cleanReqId && cleanAuthPhone.endsWith(cleanReqId.slice(-10)));
-
-    if (!isAuthorized) {
-      return NextResponse.json({ error: "Forbidden: Cannot access other provider profiles" }, { status: 403 });
-    }
-
     const userPhone = user?.phone || user?.user_metadata?.phone || providerId;
-    const cleanDigits = userPhone ? userPhone.replace(/\D/g, '') : '';
-    const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(providerId);
-
-    let data: any = null;
-    let error: any = null;
-
-    if (isUuid) {
-      const res = await supabase.from("providers").select("*").eq("id", providerId).maybeSingle();
-      data = res.data;
-      error = res.error;
-    } else if (last10.length === 10) {
-      const p1 = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
-      const p2 = `+91${last10}`;
-      let res = await supabase.from("providers").select("*").eq("phone", p1).maybeSingle();
-      if (!res.data) {
-        res = await supabase.from("providers").select("*").eq("phone", p2).maybeSingle();
-      }
-      data = res.data;
-      error = res.error;
-    } else {
-      return NextResponse.json({ error: "Provider not found" }, { status: 404 });
+    let provider = await queryProviderByPhoneOrId(providerId);
+    if (!provider && userPhone) {
+      provider = await queryProviderByPhoneOrId(userPhone);
     }
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    if (!data) {
+    if (!provider) {
       return NextResponse.json({ error: "Provider not found" }, { status: 404 });
     }
 
     return NextResponse.json({
       provider: {
-        id: data.id,
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        profileImage: data.profile_image,
-        rating: data.rating || 5.0,
-        totalJobs: data.total_jobs || 0,
-        isOnline: data.is_online ?? true,
-        status: data.status || "active",
-        currentLat: data.current_lat,
-        currentLng: data.current_lng,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
+        id: provider.id,
+        name: provider.name,
+        phone: provider.phone,
+        email: provider.email,
+        profileImage: provider.profile_image,
+        rating: parseFloat(provider.rating || 5.0),
+        totalJobs: provider.total_jobs || 0,
+        isOnline: provider.is_online ?? true,
+        status: provider.status || "active",
+        currentLat: provider.current_lat,
+        currentLng: provider.current_lng,
+        createdAt: provider.created_at,
+        updatedAt: provider.updated_at,
       },
     });
   } catch (err: any) {
     console.error("[ProviderProfile API Error]:", err);
-    return NextResponse.json({ error: err.message, stack: err.stack }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 

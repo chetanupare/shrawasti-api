@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { queryProviderByPhoneOrId } from "@/lib/db";
 
 function parseJwtPayload(token: string) {
   try {
@@ -79,41 +80,15 @@ export async function requireProviderUser(request: Request) {
   }
 
   const userPhone = user.phone || user.user_metadata?.phone || '';
-  const cleanDigits = userPhone ? userPhone.replace(/\D/g, '') : '';
-  const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
-  const userIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
+  const provider = (await queryProviderByPhoneOrId(user.id)) || (userPhone ? await queryProviderByPhoneOrId(userPhone) : null);
 
-  let data: any = null;
-  let profileError: any = null;
-
-  if (userIsUuid) {
-    const res = await supabase.from("providers").select("id, status").eq("id", user.id).maybeSingle();
-    data = res.data;
-    profileError = res.error;
-  } else if (last10.length === 10) {
-    const p1 = `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
-    const p2 = `+91${last10}`;
-    let res = await supabase.from("providers").select("id, status").eq("phone", p1).maybeSingle();
-    if (!res.data) {
-      res = await supabase.from("providers").select("id, status").eq("phone", p2).maybeSingle();
-    }
-    data = res.data;
-    profileError = res.error;
-  } else {
+  if (!provider) {
     return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };
   }
 
-  if (profileError || !data) {
-    return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };
-  }
-
-  if (profileError || !data) {
-    return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };
-  }
-
-  if (data.status !== 'active') {
+  if (provider.status !== 'active') {
     return { error: "Forbidden: Provider inactive", status: 403, user: null, provider: null };
   }
 
-  return { error: null, status: 200, user, provider: data };
+  return { error: null, status: 200, user, provider };
 }
