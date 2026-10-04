@@ -2,6 +2,19 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { queryProviderByPhoneOrId } from "@/lib/db";
 
+export function getFirebaseUuid(uid: string | null | undefined): string | undefined {
+  if (!uid) return undefined;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) {
+    return uid;
+  }
+  let hex = '';
+  for (let i = 0; i < uid.length; i++) {
+    hex += uid.charCodeAt(i).toString(16).padStart(2, '0');
+  }
+  hex = hex.padEnd(32, '0').slice(0, 32);
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-4${hex.slice(13,16)}-a${hex.slice(17,20)}-${hex.slice(20,32)}`;
+}
+
 function parseJwtPayload(token: string) {
   try {
     const parts = token.split('.');
@@ -28,9 +41,11 @@ export async function requireAuthenticatedUser(request: Request) {
   const payload = parseJwtPayload(token);
   if (payload && (payload.sub || payload.user_id || payload.phone_number)) {
     const phone = payload.phone_number || payload.phone || null;
-    const userId = payload.user_id || payload.sub;
+    const rawUserId = payload.user_id || payload.sub || '';
+    const uuid = getFirebaseUuid(rawUserId);
     const user = {
-      id: userId,
+      id: uuid || rawUserId,
+      raw_uid: rawUserId,
       phone: phone,
       email: payload.email || null,
       user_metadata: {
@@ -80,7 +95,7 @@ export async function requireProviderUser(request: Request) {
   }
 
   const userPhone = user.phone || user.user_metadata?.phone || '';
-  const provider = (await queryProviderByPhoneOrId(user.id)) || (userPhone ? await queryProviderByPhoneOrId(userPhone) : null);
+  const provider = (await queryProviderByPhoneOrId(user.id)) || (user.raw_uid ? await queryProviderByPhoneOrId(user.raw_uid) : null) || (userPhone ? await queryProviderByPhoneOrId(userPhone) : null);
 
   if (!provider) {
     return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };

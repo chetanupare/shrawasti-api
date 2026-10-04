@@ -25,7 +25,13 @@ export async function GET(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    if (booking.user_id !== user.id) {
+    const isOwner =
+      booking.user_id === user.id ||
+      (user.raw_uid && booking.user_id === user.raw_uid) ||
+      booking.assigned_provider_id === user.id ||
+      (user.raw_uid && booking.assigned_provider_id === user.raw_uid);
+
+    if (!isOwner) {
       return NextResponse.json({ error: "Forbidden: Cannot access another user's booking" }, { status: 403 });
     }
 

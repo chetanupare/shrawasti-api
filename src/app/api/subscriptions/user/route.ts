@@ -116,3 +116,45 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { subscriptionId, id, status, pauseDays } = body;
+    const subId = subscriptionId || id;
+
+    if (!subId || !status) {
+      return NextResponse.json({ error: "subscriptionId and status are required" }, { status: 400 });
+    }
+
+    const updates: Record<string, any> = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status === 'paused' && pauseDays) {
+      const now = new Date();
+      const until = new Date(now.getTime() + pauseDays * 24 * 60 * 60 * 1000);
+      updates.paused_at = now.toISOString();
+      updates.pause_until = until.toISOString();
+    } else if (status === 'active') {
+      updates.paused_at = null;
+      updates.pause_until = null;
+    }
+
+    const { data, error } = await supabase
+      .from("user_subscriptions")
+      .update(updates)
+      .eq("id", subId)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ subscription: data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

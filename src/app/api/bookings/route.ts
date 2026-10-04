@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { calcTotals, getPriceFor, Service } from "@/lib/pricing";
+import { requireAuthenticatedUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
@@ -53,18 +54,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Missing authentication" }, { status: 401 });
-    }
-    const token = authHeader.split(" ")[1];
-    const { data: authData, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !authData.user) {
-      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 });
+    const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
+    if (authError || !user) {
+      return NextResponse.json({ error: authError || "Authentication required" }, { status: authStatus || 401 });
     }
     
-    const trueUserId = authData.user.id;
+    const trueUserId = user.id;
     const body = await request.json();
     const {
       vehicleId,
@@ -147,7 +142,7 @@ export async function POST(request: Request) {
       vehicle_id: vehicleId || null,
       location_snapshot: locationSnapshot,
       vehicle_snapshot: vehicleSnapshot,
-      services: authoritativeServicesSnapshot, // Authoritative structure
+      services: authoritativeServicesSnapshot,
       schedule_date: scheduleDate,
       schedule_time: scheduleTime,
       payment_method: paymentMethod || "online",
@@ -166,7 +161,6 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError) {
-      // If uniqueness violation on idempotency_key happens exactly here due to race
       if (insertError.code === '23505') {
          const { data: existing } = await supabaseAdmin.from("bookings").select("*").eq("idempotency_key", idempotencyKey).single();
          if (existing) {

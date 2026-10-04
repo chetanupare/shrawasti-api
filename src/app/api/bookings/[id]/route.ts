@@ -1,32 +1,36 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
+import { requireAuthenticatedUser } from "@/lib/auth";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Missing authentication" }, { status: 401 });
-    }
-    const token = authHeader.split(" ")[1];
-    const { data: authData, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !authData.user) {
-      return NextResponse.json({ error: "Invalid authentication" }, { status: 401 });
+    const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
+    if (authError || !user) {
+      return NextResponse.json({ error: authError || "Authentication required" }, { status: authStatus || 401 });
     }
 
     const { id } = await params;
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("bookings")
       .select("*")
       .eq("id", id)
-      .eq("user_id", authData.user.id)
       .single();
 
     if (error || !data) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    const isOwner =
+      data.user_id === user.id ||
+      (user.raw_uid && data.user_id === user.raw_uid) ||
+      data.assigned_provider_id === user.id ||
+      (user.raw_uid && data.assigned_provider_id === user.raw_uid);
+
+    if (!isOwner) {
+      return NextResponse.json({ error: "Forbidden: Cannot access this booking" }, { status: 403 });
     }
 
     return NextResponse.json({
@@ -55,5 +59,3 @@ export async function GET(
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
-

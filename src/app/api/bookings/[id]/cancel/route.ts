@@ -44,8 +44,9 @@ export async function POST(
       .single();
 
     const isAdmin = profile?.role === "admin";
+    const isOwner = booking.user_id === user.id || (user.raw_uid && booking.user_id === user.raw_uid);
 
-    if (booking.user_id !== user.id && !isAdmin) {
+    if (!isOwner && !isAdmin) {
       return NextResponse.json({ error: "Forbidden: Cannot cancel another user's booking" }, { status: 403 });
     }
 
