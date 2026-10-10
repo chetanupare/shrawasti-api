@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
+import { markCarePassPaid } from "@/lib/carePass";
 
 export async function POST(request: Request) {
   try {
@@ -47,6 +48,17 @@ export async function POST(request: Request) {
         .single();
 
       if (paymentError || !paymentRecord) {
+        const carePass = await markCarePassPaid({
+          orderId,
+          paymentId,
+          amountPaid,
+        });
+        if (!carePass.error) {
+          return NextResponse.json({ received: true, subscriptionId: carePass.subscriptionId }, { status: 200 });
+        }
+        if (carePass.status !== 404) {
+          return NextResponse.json({ error: carePass.error }, { status: carePass.status });
+        }
         console.error("Payment record not found for order:", orderId);
         return NextResponse.json({ error: "Payment record not found" }, { status: 404 });
       }
@@ -91,23 +103,23 @@ export async function POST(request: Request) {
       if (fetchBookingError || !booking) {
         throw new Error("Failed to fetch booking for webhook");
       }
-      
-      const newStatus = booking.status === "cancelled" ? "cancelled" : "confirmed";
+
+      const bookingUpdate: Record<string, string> = { payment_status: "paid" };
+      if (booking.status === "pending") {
+        bookingUpdate.status = "confirmed";
+      }
 
       const { error: updateBookingError } = await supabaseAdmin
         .from("bookings")
-        .update({
-          status: newStatus,
-          payment_status: "paid",
-        })
+        .update(bookingUpdate)
         .eq("id", paymentRecord.booking_id);
 
       if (updateBookingError) {
         throw new Error("Failed to confirm booking");
       }
 
-      // Trigger Notification only if the booking is actually confirmed (not cancelled)
-      if (newStatus === "confirmed") {
+      // Notify only when this payment is what confirms a still-pending booking.
+      if (booking.status === "pending") {
         const { notifyBookingEvent } = require("@/lib/notifications");
         notifyBookingEvent(paymentRecord.user_id, 'BOOKING_CONFIRMED', paymentRecord.booking_id);
       }
@@ -118,6 +130,15 @@ export async function POST(request: Request) {
        const orderId = paymentEntity.order_id;
        if (orderId) {
          await supabaseAdmin.from("payments").update({ status: "failed" }).eq("razorpay_order_id", orderId);
+         const { data: carePassPayment } = await supabaseAdmin
+           .from("subscription_payments")
+           .select("id, subscription_id")
+           .eq("gateway_order_id", orderId)
+           .maybeSingle();
+         if (carePassPayment) {
+           await supabaseAdmin.from("subscription_payments").update({ status: "failed" }).eq("id", carePassPayment.id);
+           await supabaseAdmin.from("user_subscriptions").update({ status: "payment_failed" }).eq("id", carePassPayment.subscription_id).eq("status", "pending");
+         }
        }
     }
 

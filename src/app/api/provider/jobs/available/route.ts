@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 import { requireProviderUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
@@ -12,12 +12,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "20");
 
-    // Unassigned bookings in 'pending' or 'confirmed' status
-    const { data, error } = await supabase
+    // Confirmed and unassigned. Paid online jobs, plus cash jobs that are not paid yet.
+    const { data, error } = await supabaseAdmin
       .from("bookings")
       .select("*")
-      .in("status", ["pending", "confirmed"])
+      .eq("status", "confirmed")
       .is("assigned_provider_id", null)
+      .or("payment_status.eq.paid,payment_method.ilike.cash,payment_method.ilike.after_service")
       .order("created_at", { ascending: true })
       .limit(limit);
 

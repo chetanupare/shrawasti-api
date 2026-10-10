@@ -3,6 +3,19 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { requireProviderUser } from "@/lib/auth";
 import { notifyBookingEvent } from "@/lib/notifications";
 
+function isStoredProofUrl(value: unknown): boolean {
+  if (typeof value !== "string" || !value.startsWith("https://")) return false;
+  const lower = value.toLowerCase();
+  if (lower.includes("unsplash.com") || lower.includes("imgur.com") || lower.includes("placeholder")) {
+    return false;
+  }
+  try {
+    return new URL(value).pathname.includes("/service-proofs/");
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -111,13 +124,17 @@ export async function POST(
     }
 
     if (targetStatus === 'completed') {
-      const isValid = Array.isArray(beforeImages) && beforeImages.length >= 1 &&
-                      Array.isArray(afterImages) && afterImages.length >= 1 &&
-                      typeof serviceNotes === 'string' && serviceNotes.trim().length > 0;
-      
-      if (!isValid) {
+      const hasProof =
+        Array.isArray(beforeImages) &&
+        beforeImages.some(isStoredProofUrl) &&
+        Array.isArray(afterImages) &&
+        afterImages.some(isStoredProofUrl) &&
+        typeof serviceNotes === "string" &&
+        serviceNotes.trim().length > 0;
+
+      if (!hasProof) {
         return NextResponse.json(
-          { error: "Completion evidence is incomplete. beforeImages, afterImages, and serviceNotes are required." },
+          { error: "Upload a before photo and an after photo before completing this job." },
           { status: 400 }
         );
       }

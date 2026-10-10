@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
     const { data: completedBookings, error } = await supabaseAdmin
       .from("bookings")
-      .select("id, total, created_at, updated_at")
+      .select("id, total, payment_status, created_at, updated_at")
       .eq("assigned_provider_id", provider.id)
       .eq("status", "completed");
 
@@ -28,14 +28,19 @@ export async function GET(request: Request) {
 
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay())).getTime();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
     let totalEarnings = 0;
     let todayEarnings = 0;
     let weekEarnings = 0;
+    let monthEarnings = 0;
     let todayJobsCount = 0;
+    let paidJobsCount = 0;
 
     (completedBookings || []).forEach((b: any) => {
+      if (b.payment_status && b.payment_status !== "paid") return;
+      paidJobsCount += 1;
       const amount = Number(b.total) || 0;
       const jobTime = new Date(b.updated_at || b.created_at).getTime();
 
@@ -48,6 +53,9 @@ export async function GET(request: Request) {
       if (jobTime >= startOfWeek) {
         weekEarnings += amount;
       }
+      if (jobTime >= startOfMonth) {
+        monthEarnings += amount;
+      }
     });
 
     // Payout split (80% provider payout rate)
@@ -55,23 +63,25 @@ export async function GET(request: Request) {
     const finalTotal = Math.round(totalEarnings * providerShareRate);
     const finalToday = Math.round(todayEarnings * providerShareRate);
     const finalWeek = Math.round(weekEarnings * providerShareRate);
+    const finalMonth = Math.round(monthEarnings * providerShareRate);
 
     return NextResponse.json({
       today: finalToday,
       thisWeek: finalWeek,
-      thisMonth: finalTotal,
+      thisMonth: finalMonth,
       total: finalTotal,
-      completedJobsCount: (completedBookings || []).length,
+      completedJobsCount: paidJobsCount,
       todayJobsCount,
       earnings: {
         total: finalTotal,
         today: finalToday,
         thisWeek: finalWeek,
+        thisMonth: finalMonth,
         totalEarnings: finalTotal,
         todayEarnings: finalToday,
         weekEarnings: finalWeek,
-        totalCompletedJobs: (completedBookings || []).length,
-        completedJobsCount: (completedBookings || []).length,
+        totalCompletedJobs: paidJobsCount,
+        completedJobsCount: paidJobsCount,
         todayJobsCount,
         payoutRate: "80%",
         currency: "INR",

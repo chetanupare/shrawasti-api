@@ -3,6 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { requireAuthenticatedUser, ensureUserExists } from "@/lib/auth";
 import { notifyBookingEvent } from "@/lib/notifications";
 
+const CUSTOMER_CANCEL_WINDOW_MS = 20 * 60 * 1000;
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -30,7 +32,7 @@ export async function POST(
     // Load the booking to verify ownership and state
     const { data: booking, error: fetchError } = await supabaseAdmin
       .from("bookings")
-      .select("id, user_id, status")
+      .select("id, user_id, status, created_at")
       .eq("id", bookingId)
       .single();
 
@@ -63,6 +65,16 @@ export async function POST(
         { error: `Cannot cancel booking in '${booking.status}' state.` },
         { status: 422 }
       );
+    }
+
+    if (!isAdmin) {
+      const created = new Date(booking.created_at).getTime();
+      if (!Number.isFinite(created) || Date.now() - created > CUSTOMER_CANCEL_WINDOW_MS) {
+        return NextResponse.json(
+          { error: "Bookings can only be cancelled within 20 minutes of placing them." },
+          { status: 422 }
+        );
+      }
     }
 
     // Atomically transition the booking

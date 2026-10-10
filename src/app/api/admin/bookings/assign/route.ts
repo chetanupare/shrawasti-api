@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { isProviderAccountBlocked, requireAdminUser } from "@/lib/auth";
 import { notifyBookingEvent } from "@/lib/notifications";
+import { isOpenForTechnician } from "@/lib/jobAccept";
 
 export async function POST(request: Request) {
   try {
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     // Fetch booking to verify current state
     const { data: bookingCheck, error: bCheckError } = await supabaseAdmin
       .from("bookings")
-      .select("id, user_id, status, assigned_provider_id")
+      .select("id, user_id, status, assigned_provider_id, payment_method, payment_status")
       .eq("id", bookingId)
       .single();
 
@@ -49,6 +50,13 @@ export async function POST(request: Request) {
     if (!allowedStatesToAssign.includes(bookingCheck.status)) {
       return NextResponse.json(
         { error: `Cannot assign provider to booking in '${bookingCheck.status}' state` },
+        { status: 422 }
+      );
+    }
+
+    if (!bookingCheck.assigned_provider_id && !isOpenForTechnician(bookingCheck)) {
+      return NextResponse.json(
+        { error: "Unpaid online bookings and cancelled bookings cannot be assigned" },
         { status: 422 }
       );
     }

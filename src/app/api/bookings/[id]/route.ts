@@ -50,6 +50,7 @@ export async function GET(
         discount: data.discount,
         total: data.total,
         status: data.status,
+        serviceProof: data.service_proof || null,
         idempotencyKey: data.idempotency_key,
         createdAt: data.created_at,
         updatedAt: data.updated_at,

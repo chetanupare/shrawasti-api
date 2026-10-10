@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
 import { isProviderAccountBlocked, requireProviderUser } from "@/lib/auth";
 import { notifyBookingEvent } from "@/lib/notifications";
+import { acceptOpenJob } from "@/lib/jobAccept";
 
 export async function POST(request: Request) {
   try {
@@ -25,29 +25,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const updates = {
-      assigned_provider_id: provider.id,
-      status: "accepted",
-      updated_at: new Date().toISOString(),
-    };
+    const { data, error, status } = await acceptOpenJob(bookingId, provider.id);
 
-    const { data, error } = await supabaseAdmin
-      .from("bookings")
-      .update(updates)
-      .eq("id", bookingId)
-      .is("assigned_provider_id", null)
-      .select()
-      .maybeSingle();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    if (!data) {
-      return NextResponse.json(
-        { error: "Conflict: Booking is no longer available or has already been accepted" },
-        { status: 409 }
-      );
+    if (error || !data) {
+      return NextResponse.json({ error: error || "This job is not available" }, { status });
     }
 
     // Trigger Notifications

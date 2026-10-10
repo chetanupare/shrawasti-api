@@ -1,6 +1,44 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { queryProviderByPhoneOrId } from "@/lib/db";
+
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "shrawasti-da98e";
+
+let firebaseCerts: { certs: Record<string, string>; expires: number } | null = null;
+
+async function getFirebaseCerts() {
+  if (firebaseCerts && firebaseCerts.expires > Date.now()) return firebaseCerts.certs;
+  const res = await fetch("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com");
+  if (!res.ok) throw new Error("Could not load Firebase signing keys");
+  const maxAge = Number((res.headers.get("cache-control") || "").match(/max-age=(\d+)/)?.[1] || 3600);
+  const certs = await res.json() as Record<string, string>;
+  firebaseCerts = { certs, expires: Date.now() + maxAge * 1000 };
+  return certs;
+}
+
+async function verifyFirebaseIdToken(token: string) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const header = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8"));
+  const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+  if (header.alg !== "RS256" || !header.kid) return null;
+
+  const certs = await getFirebaseCerts();
+  const cert = certs[header.kid];
+  if (!cert) return null;
+
+  const verifier = crypto.createVerify("RSA-SHA256");
+  verifier.update(`${parts[0]}.${parts[1]}`);
+  if (!verifier.verify(cert, Buffer.from(parts[2], "base64url"))) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (typeof payload.exp !== "number" || payload.exp < now) return null;
+  if (payload.aud !== FIREBASE_PROJECT_ID) return null;
+  if (payload.iss !== `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`) return null;
+  if (!payload.sub) return null;
+  return payload;
+}
 
 export function getFirebaseUuid(uid: string | null | undefined): string | undefined {
   if (!uid) return undefined;
@@ -62,24 +100,30 @@ export async function requireAuthenticatedUser(request: Request) {
   }
   const token = authHeader.split(" ")[1];
 
-  // 1. Try parsing JWT payload (Firebase Auth / custom ID tokens)
+  try {
+    const payload = await verifyFirebaseIdToken(token);
+    if (payload) {
+      const phone = payload.phone_number || payload.phone || null;
+      const rawUserId = payload.user_id || payload.sub || "";
+      const uuid = getFirebaseUuid(rawUserId);
+      return {
+        error: null,
+        status: 200,
+        user: {
+          id: uuid || rawUserId,
+          raw_uid: rawUserId,
+          phone,
+          email: payload.email || null,
+          user_metadata: {
+            phone,
+            name: payload.name || null,
+          },
+        } as any,
+      };
+    }
+  } catch {}
+
   const payload = parseJwtPayload(token);
-  if (payload && (payload.sub || payload.user_id || payload.phone_number)) {
-    const phone = payload.phone_number || payload.phone || null;
-    const rawUserId = payload.user_id || payload.sub || '';
-    const uuid = getFirebaseUuid(rawUserId);
-    const user = {
-      id: uuid || rawUserId,
-      raw_uid: rawUserId,
-      phone: phone,
-      email: payload.email || null,
-      user_metadata: {
-        phone: phone,
-        name: payload.name || null,
-      },
-    };
-    return { error: null, status: 200, user: user as any };
-  }
 
   // 2. Try Supabase Auth token (only if sub looks like a valid UUID)
   if (payload?.sub && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.sub)) {

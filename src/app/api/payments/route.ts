@@ -1,24 +1,19 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
+import { requireAuthenticatedUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
+    const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
+    if (authError || !user) {
+      return NextResponse.json({ error: authError || "Authentication required" }, { status: authStatus || 401 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
     const bookingId = searchParams.get("bookingId");
+    const ownerIds = [user.id, user.raw_uid].filter(Boolean);
 
-    if (!userId && !bookingId) {
-      return NextResponse.json(
-        { error: "userId or bookingId parameter is required" },
-        { status: 400 }
-      );
-    }
-
-    let query = supabase.from("payments").select("*");
-
-    if (userId) {
-      query = query.eq("user_id", userId);
-    }
+    let query = supabaseAdmin.from("payments").select("*").in("user_id", ownerIds);
     if (bookingId) {
       query = query.eq("booking_id", bookingId);
     }
@@ -47,5 +42,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-
-

@@ -40,15 +40,13 @@ export async function GET(
     const subtotal = Number(booking.subtotal) || 0;
     const discount = Number(booking.discount) || 0;
     const total = Number(booking.total) || 0;
-    const gstAmount = 0;
 
     return NextResponse.json({
       invoice: {
         invoiceNumber,
         invoiceDate,
         company: {
-          name: "Shrawasti Car Care Pvt Ltd",
-          gstin: "27AAACS1234F1Z9",
+          name: "Shrawasti Car Care",
           address: "Doorstep Precision Care Network, India",
           contact: "support@shrawasticarcare.com",
         },
@@ -63,12 +61,9 @@ export async function GET(
         paymentMethod: booking.payment_method,
         paymentStatus: booking.payment_status,
         financials: {
-          grossTotal: subtotal,
+          subtotal,
           discount,
-          netBeforeTax: subtotal,
-          cgst: Math.round(gstAmount / 2),
-          sgst: Math.round(gstAmount / 2),
-          totalGst: gstAmount,
+          total,
           finalAmountPaid: total,
         },
       },

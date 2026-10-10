@@ -1,26 +1,26 @@
 import { NextResponse } from "next/server";
-import { supabase, supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 import { calcTotals, getPriceFor, Service } from "@/lib/pricing";
 import { loadServicePrices } from "@/lib/servicePrices";
 import { requireAuthenticatedUser, ensureUserExists } from "@/lib/auth";
+import { createRazorpayOrderForBooking } from "@/lib/razorpayOrder";
+import { quoteCoupon } from "@/lib/coupons";
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-    const status = searchParams.get("status");
-
-    if (!userId) {
-      return NextResponse.json({ error: "userId parameter is required" }, { status: 400 });
+    const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
+    if (authError || !user) {
+      return NextResponse.json({ error: authError || "Authentication required" }, { status: authStatus || 401 });
     }
 
-    const { getFirebaseUuid } = require("@/lib/auth");
-    const uuid = getFirebaseUuid(userId) || userId;
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
+    const ownerIds = [user.id, user.raw_uid].filter(Boolean);
 
-    let query = supabase
+    let query = supabaseAdmin
       .from("bookings")
       .select("*")
-      .or(`user_id.eq.${userId},user_id.eq.${uuid}`);
+      .in("user_id", ownerIds);
 
     if (status) {
       query = query.eq("status", status);
@@ -94,14 +94,34 @@ export async function POST(request: Request) {
         .maybeSingle();
         
       if (existing) {
-        return NextResponse.json({ 
-          booking: {
-            id: existing.id,
+        const bookingPayload = {
+          id: existing.id,
+          userId: existing.user_id,
+          status: existing.status,
+          total: existing.total,
+          paymentStatus: existing.payment_status,
+        };
+        const unpaid = existing.payment_status !== "paid" && existing.status !== "cancelled";
+        const wantsOnline = paymentMethod === "online" || paymentMethod === "card" || paymentMethod === "upi";
+        if (unpaid && wantsOnline) {
+          const created = await createRazorpayOrderForBooking({
+            bookingId: existing.id,
             userId: existing.user_id,
-            status: existing.status,
-            total: existing.total
-          }, 
-          message: "Existing intent returned" 
+            amount: Number(existing.total),
+            method: paymentMethod || "online",
+          });
+          if (created.error || !created.razorpayOrder) {
+            return NextResponse.json({ error: created.error || "Could not restart payment" }, { status: 502 });
+          }
+          return NextResponse.json({
+            booking: bookingPayload,
+            razorpayOrder: created.razorpayOrder,
+            message: "Existing intent returned",
+          });
+        }
+        return NextResponse.json({
+          booking: bookingPayload,
+          message: "Existing intent returned",
         });
       }
     }
@@ -148,7 +168,11 @@ export async function POST(request: Request) {
       price: getPriceFor(s, bodyType) ?? s.basePrice ?? 0
     }));
     const { subtotal, total: grossTotal } = calcTotals(fullServices, bodyType);
-    discount = Math.min(grossTotal, Math.max(0, Number(body.discount) || 0));
+    const quote = quoteCoupon(body.couponCode, grossTotal);
+    if (quote.error) {
+      return NextResponse.json({ error: quote.error }, { status: quote.status });
+    }
+    discount = quote.discount;
     const total = Math.max(0, grossTotal - discount);
 
     const isOnline = paymentMethod === "online" || paymentMethod === "card" || paymentMethod === "upi";
@@ -262,35 +286,19 @@ export async function POST(request: Request) {
 
     let razorpayOrder = null;
     if (isOnline && total > 0) {
-      const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-      const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      
-      if (keyId && keySecret) {
-        const authBase64 = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
-        const orderRes = await fetch("https://api.razorpay.com/v1/orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Basic ${authBase64}` },
-          body: JSON.stringify({
-            amount: Math.round(total * 100),
-            currency: "INR",
-            receipt: savedBooking.id.substring(0, 40),
-            notes: { bookingId: savedBooking.id }
-          }),
-        });
-        
-        if (orderRes.ok) {
-          razorpayOrder = await orderRes.json();
-          // Create payment record
-          await supabaseAdmin.from("payments").insert({
-            booking_id: savedBooking.id,
-            user_id: trueUserId,
-            razorpay_order_id: razorpayOrder.id,
-            amount: total,
-            method: paymentMethod || "online",
-            status: "pending"
-          });
-        }
+      const created = await createRazorpayOrderForBooking({
+        bookingId: savedBooking.id,
+        userId: trueUserId,
+        amount: total,
+        method: paymentMethod || "online",
+      });
+      if (created.error || !created.razorpayOrder) {
+        return NextResponse.json(
+          { error: created.error || "Could not start payment", bookingId: savedBooking.id },
+          { status: 502 }
+        );
       }
+      razorpayOrder = created.razorpayOrder;
     }
 
     return NextResponse.json(
