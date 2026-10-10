@@ -58,6 +58,30 @@ import {
   LogOut,
 } from "lucide-react";
 
+const BODY_PRICE_FIELDS = [
+  { key: "scooter", label: "Scooter" },
+  { key: "bike", label: "Bike" },
+  { key: "sport_bike", label: "Sport bike" },
+  { key: "cruiser", label: "Cruiser" },
+  { key: "hatchback", label: "Hatchback" },
+  { key: "sedan", label: "Sedan" },
+  { key: "suv", label: "SUV" },
+  { key: "7_seater", label: "7 seater" },
+] as const;
+
+function blankServiceForm() {
+  return {
+    name: "",
+    category: "car_wash",
+    vehicleType: "4W",
+    bodyType: "All",
+    basePrice: 499,
+    durationMinutes: "45",
+    description: "",
+    prices: Object.fromEntries(BODY_PRICE_FIELDS.map((field) => [field.key, ""])) as Record<string, string>,
+  };
+}
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<
     | "overview"
@@ -148,15 +172,7 @@ export default function AdminDashboard() {
 
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [editingService, setEditingService] = useState<any | null>(null);
-  const [serviceForm, setServiceForm] = useState({
-    name: "",
-    category: "car_wash",
-    vehicleType: "4W",
-    bodyType: "Hatchback",
-    basePrice: 499,
-    durationMinutes: "45",
-    description: "",
-  });
+  const [serviceForm, setServiceForm] = useState(blankServiceForm);
 
   const [showProviderModal, setShowProviderModal] = useState(false);
   const [editingProvider, setEditingProvider] = useState<any | null>(null);
@@ -331,7 +347,7 @@ export default function AdminDashboard() {
         showToast(editingService ? "Service updated!" : "New service created!");
         setShowServiceModal(false);
         setEditingService(null);
-        setServiceForm({ name: "", category: "car_wash", vehicleType: "4W", bodyType: "Hatchback", basePrice: 499, durationMinutes: "45", description: "" });
+        setServiceForm(blankServiceForm());
         fetchAllData(true);
       } else {
         const data = await res.json();
@@ -1666,7 +1682,7 @@ export default function AdminDashboard() {
                         colorScheme="blue"
                         onClick={() => {
                           setEditingService(null);
-                          setServiceForm({ name: "", category: "car_wash", vehicleType: "4W", bodyType: "Hatchback", basePrice: 499, durationMinutes: "45", description: "" });
+                          setServiceForm(blankServiceForm());
                           setShowServiceModal(true);
                         }}
                       >
@@ -1762,9 +1778,11 @@ export default function AdminDashboard() {
                                 {s.description || "Professional vehicle wash and maintenance service."}
                               </Text>
 
-                              <Flex justifyContent="space-between" alignItems="center" my="2">
-                                <Text fontSize="sm" fontWeight="bold" color="#34D399">
-                                  ₹{s.basePrice || s.price}
+                              <Flex justifyContent="space-between" alignItems="flex-start" my="2" gap="2">
+                                <Text fontSize="11px" fontWeight="bold" color="#34D399">
+                                  {s.prices && Object.keys(s.prices).length > 0
+                                    ? BODY_PRICE_FIELDS.filter((field) => s.prices[field.key] != null).map((field) => `${field.label} ₹${s.prices[field.key]}`).join(" · ")
+                                    : `₹${s.basePrice || s.price}`}
                                 </Text>
                                 <Text fontSize="11px" color="#E2E8F0">
                                   ⏱️ {s.durationMinutes ? `${s.durationMinutes} mins` : s.duration || "45 mins"}
@@ -1782,10 +1800,13 @@ export default function AdminDashboard() {
                                       name: s.name || "",
                                       category: s.category || "car_wash",
                                       vehicleType: is2W ? "2W" : "4W",
-                                      bodyType: s.bodyType || "Hatchback",
+                                      bodyType: s.bodyType || "All",
                                       basePrice: s.basePrice || s.price || 499,
                                       durationMinutes: String(s.durationMinutes || "45"),
                                       description: s.description || "",
+                                      prices: Object.fromEntries(
+                                        BODY_PRICE_FIELDS.map((field) => [field.key, s.prices?.[field.key] ?? ""])
+                                      ),
                                     });
                                     setShowServiceModal(true);
                                   }}
@@ -2735,7 +2756,7 @@ export default function AdminDashboard() {
       {/* 2. Service Modal */}
       {showServiceModal && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="640px" maxH="90vh" overflowY="auto">
             <Heading size="md" color="white" mb="4">
               {editingService ? "Edit Service" : "Add New Service"}
             </Heading>
@@ -2773,8 +2794,32 @@ export default function AdminDashboard() {
                 </Grid>
 
                 <Box>
-                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Price (₹)</Text>
+                  <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Fallback price (₹)</Text>
                   <Input type="number" required value={serviceForm.basePrice} onChange={(e) => setServiceForm({ ...serviceForm, basePrice: Number(e.target.value) })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  <Text fontSize="10px" color="gray.400" mt="1">Used only when a body type below is left blank.</Text>
+                </Box>
+
+                <Box>
+                  <Text fontSize="xs" color="gray.300" mb="2" fontWeight="bold">Price by body type (₹)</Text>
+                  <Grid templateColumns="repeat(2, 1fr)" gap="2">
+                    {BODY_PRICE_FIELDS.map((field) => (
+                      <Box key={field.key}>
+                        <Text fontSize="10px" color="gray.400" mb="1">{field.label}</Text>
+                        <Input
+                          type="number"
+                          value={serviceForm.prices?.[field.key] ?? ""}
+                          onChange={(e) => setServiceForm({
+                            ...serviceForm,
+                            prices: { ...serviceForm.prices, [field.key]: e.target.value },
+                          })}
+                          bg="#1E293B"
+                          color="#FFFFFF"
+                          borderRadius="lg"
+                          placeholder="—"
+                        />
+                      </Box>
+                    ))}
+                  </Grid>
                 </Box>
                 
                 <Box>

@@ -113,6 +113,10 @@ export async function requireAdminUser(request: Request) {
   return { error: null, status: 200, user };
 }
 
+export function isProviderAccountBlocked(status: string | null | undefined) {
+  return ["inactive", "disabled", "suspended", "blocked"].includes(String(status || "active").toLowerCase());
+}
+
 export async function requireProviderUser(request: Request) {
   const { error, status, user } = await requireAuthenticatedUser(request);
   if (error || !user) {
@@ -126,7 +130,7 @@ export async function requireProviderUser(request: Request) {
     return { error: "Forbidden: Provider profile not found", status: 403, user: null, provider: null };
   }
 
-  if (provider.status !== 'active') {
+  if (isProviderAccountBlocked(provider.status)) {
     return { error: "Forbidden: Provider inactive", status: 403, user: null, provider: null };
   }
 

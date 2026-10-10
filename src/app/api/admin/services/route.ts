@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { loadServicePrices, saveServicePrices } from "@/lib/servicePrices";
 
 export async function GET(request: Request) {
   try {
@@ -23,6 +24,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const priceMap = await loadServicePrices((data || []).map((s: any) => s.id));
+
     const services = (data || []).map((s: any) => ({
       id: s.id,
       name: s.name,
@@ -31,6 +34,7 @@ export async function GET(request: Request) {
       vehicleType: s.vehicle_type || (s.category?.includes("2w") || s.category?.includes("bike") ? "2W" : "4W"),
       bodyType: s.body_type || "All",
       basePrice: s.base_price,
+      prices: priceMap[s.id] || {},
       popular: s.popular,
       durationMinutes: s.duration_minutes || 45,
       isActive: s.is_active ?? true,
@@ -46,7 +50,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, category, vehicleType, bodyType, basePrice, durationMinutes, popular, isActive } = body;
+    const { name, description, category, vehicleType, bodyType, basePrice, durationMinutes, popular, isActive, prices } = body;
 
     if (!name || basePrice === undefined) {
       return NextResponse.json({ error: "Name and basePrice are required" }, { status: 400 });
@@ -71,9 +75,11 @@ export async function POST(request: Request) {
       .select()
       .maybeSingle();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error || !data) {
+      return NextResponse.json({ error: error?.message || "Could not create service" }, { status: 500 });
     }
+
+    await saveServicePrices(data.id, prices);
 
     return NextResponse.json({ service: data }, { status: 201 });
   } catch (err: any) {
@@ -84,7 +90,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, name, description, category, vehicleType, bodyType, basePrice, durationMinutes, popular, isActive } = body;
+    const { id, name, description, category, vehicleType, bodyType, basePrice, durationMinutes, popular, isActive, prices } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Service ID is required" }, { status: 400 });
@@ -112,6 +118,8 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    await saveServicePrices(id, prices);
+
     return NextResponse.json({ success: true, service: data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -133,6 +141,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Service ID is required" }, { status: 400 });
     }
 
+    await supabaseAdmin.from("service_prices").delete().eq("service_id", id);
     const { error } = await supabaseAdmin.from("services").delete().eq("id", id);
 
     if (error) {

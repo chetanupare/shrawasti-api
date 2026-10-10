@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireProviderUser } from "@/lib/auth";
+import { isProviderAccountBlocked, requireProviderUser } from "@/lib/auth";
 import { notifyBookingEvent } from "@/lib/notifications";
 
 export async function POST(request: Request) {
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     }
 
     // Check if provider is active
-    if (provider.status !== "active") {
+    if (isProviderAccountBlocked(provider.status)) {
       return NextResponse.json(
         { error: "Provider account is inactive" },
         { status: 422 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { calcTotals, getPriceFor, Service } from "@/lib/pricing";
+import { loadServicePrices } from "@/lib/servicePrices";
 import { requireAuthenticatedUser, ensureUserExists } from "@/lib/auth";
 
 export async function GET(request: Request) {
@@ -120,13 +121,21 @@ export async function POST(request: Request) {
         fullServices.push({
           id: svcData.id,
           name: svcData.name,
-          basePrice: svcData.base_price,
+          basePrice: Number(svcData.base_price) || 0,
           category: svcData.category,
           isActive: svcData.is_active,
           createdAt: svcData.created_at,
           updatedAt: svcData.updated_at,
           prices: svcData.prices
         });
+      }
+    }
+
+    const priceMap = await loadServicePrices(fullServices.map((s) => s.id));
+    for (const service of fullServices) {
+      const listed = priceMap[service.id];
+      if (listed && Object.keys(listed).length > 0) {
+        service.prices = listed;
       }
     }
     

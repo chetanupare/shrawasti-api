@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 import { requireProviderUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { isOnline, status } = body;
+    const { isOnline } = body;
 
     if (isOnline === undefined) {
       return NextResponse.json(
@@ -19,13 +19,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const updates = {
-      is_online: isOnline,
-      status: status || (isOnline ? "available" : "offline"),
+    const updates: Record<string, unknown> = {
+      is_online: Boolean(isOnline),
       updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase
+    // Availability is is_online. status stays the account flag.
+    // Rows previously stuck on offline/available are restored so jobs can be accepted.
+    const accountStatus = String(provider.status || "").toLowerCase();
+    if (accountStatus === "offline" || accountStatus === "available" || accountStatus === "") {
+      updates.status = "active";
+    }
+
+    const { data, error } = await supabaseAdmin
       .from("providers")
       .update(updates)
       .eq("id", provider.id)

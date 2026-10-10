@@ -40,9 +40,7 @@ export async function GET(
     const subtotal = Number(booking.subtotal) || 0;
     const discount = Number(booking.discount) || 0;
     const total = Number(booking.total) || 0;
-    const gstRate = 0.18;
-    const netAmount = Math.round(total / (1 + gstRate));
-    const gstAmount = total - netAmount;
+    const gstAmount = 0;
 
     return NextResponse.json({
       invoice: {
@@ -67,7 +65,7 @@ export async function GET(
         financials: {
           grossTotal: subtotal,
           discount,
-          netBeforeTax: netAmount,
+          netBeforeTax: subtotal,
           cgst: Math.round(gstAmount / 2),
           sgst: Math.round(gstAmount / 2),
           totalGst: gstAmount,

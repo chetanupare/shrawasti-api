@@ -18,7 +18,8 @@ export interface ServiceSnapshot {
   price: number;
 }
 
-export const GST_RATE = 0.18;
+/** GST is not applied. Catalog prices are the amount the customer pays. */
+export const GST_RATE = 0;
 
 export interface TotalBreakdown {
   subtotal: number;
@@ -148,73 +149,26 @@ export function normalizeBodyType(
   return undefined;
 }
 
+export function readListedPrice(
+  prices: Record<string, unknown> | undefined,
+  key: string
+): number | undefined {
+  if (!prices) return undefined;
+  const raw = prices[key];
+  const amount = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+  return Number.isFinite(amount) ? amount : undefined;
+}
+
 export function getPriceFor(service: Service, bodyType?: string): number | undefined {
   const norm = normalizeBodyType(bodyType);
-  
+  const prices = service.prices as Record<string, unknown> | undefined;
   if (norm) {
-    if (service.prices && typeof service.prices[norm] === 'number') {
-      return service.prices[norm];
-    }
-
-    // Fallback for 7_seater to SUV price if 7_seater is not explicitly set in prices object
-    if (norm === '7_seater' && service.prices && typeof service.prices.suv === 'number') {
-      return service.prices.suv;
-    }
-
-    // Fallback for 4W body types if specific tier price isn't explicitly set in prices object
-    if (['hatchback', 'sedan', 'suv', '7_seater'].includes(norm) && service.category !== 'add_on') {
-      const nameLower = service.name.toLowerCase();
-      if (nameLower.includes('basic')) {
-        if (norm === 'hatchback') return 249;
-        if (norm === 'sedan') return 299;
-        if (norm === 'suv') return 299;
-        if (norm === '7_seater') return 349;
-      }
-      if (nameLower.includes('shine')) {
-        if (norm === 'hatchback') return 399;
-        if (norm === 'sedan') return 449;
-        if (norm === 'suv') return 499;
-        if (norm === '7_seater') return 599;
-      }
-      if (nameLower.includes('premium')) {
-        if (norm === 'hatchback') return 699;
-        if (norm === 'sedan') return 799;
-        if (norm === 'suv') return 799;
-        if (norm === '7_seater') return 899;
-      }
-    }
-
-    // Fallback for 2W body types if specific price isn't explicitly set in prices object
-    if (service.prices && typeof service.prices.bike === 'number') {
-      const baseBike = service.prices.bike;
-      if (norm === 'scooter') return baseBike;
-      if (norm === 'sport_bike') return baseBike + 30;
-      if (norm === 'cruiser') return baseBike + 50;
-      return baseBike;
-    }
-
-    // Fallback if 2W body type is requested and service is a wash/care package
-    if (['scooter', 'bike', 'sport_bike', 'cruiser'].includes(norm) && service.category !== 'add_on') {
-      if (norm === 'scooter') return 169;
-      if (norm === 'bike') return 169;
-      if (norm === 'sport_bike') return 199;
-      if (norm === 'cruiser') return 219;
-    }
+    const listed = readListedPrice(prices, norm);
+    if (listed !== undefined) return listed;
   }
-  
-  // Add-ons fallback to basePrice if no per-body-type mapping exists
-  if (service.category === 'add_on') {
-    return service.basePrice;
-  }
-
-  // Fallback to specific body type price if matched or basePrice
-  if (norm && service.prices) {
-    if (norm === 'suv' && typeof service.prices.suv === 'number') return service.prices.suv;
-    if (norm === 'sedan' && typeof service.prices.sedan === 'number') return service.prices.sedan;
-    if (norm === 'hatchback' && typeof service.prices.hatchback === 'number') return service.prices.hatchback;
-  }
-
-  return service.basePrice;
+  if (service.basePrice === undefined || service.basePrice === null) return undefined;
+  const base = Number(service.basePrice);
+  return Number.isFinite(base) ? base : undefined;
 }
 
 export function calcSubtotal(services: Service[], bodyType?: string): number {
@@ -225,7 +179,7 @@ export function calcSubtotal(services: Service[], bodyType?: string): number {
 }
 
 /**
- * GST-exclusive totals. The displayed price has GST added on top.
+ * Totals from catalog prices. GST is not added.
  */
 export function calcTotals(services: Service[], bodyType?: string): TotalBreakdown {
   const subtotal = calcSubtotal(services, bodyType);
@@ -323,7 +277,7 @@ export function __runPricingTests() {
   console.assert(getPriceFor(_TEST_MOCK_SHINE_WASH, 'sedan') !== getPriceFor(_TEST_MOCK_SHINE_WASH, 'suv'), 'Sedan Shine != SUV Shine');
 
   // Missing price tests
-  console.assert(getPriceFor(_TEST_MOCK_ADDON, 'suv') === undefined, 'Missing price returns undefined, not base_price');
+  console.assert(getPriceFor(_TEST_MOCK_ADDON, 'suv') === 99, 'Missing body price uses the service base price');
   
   console.log("All pricing tests passed successfully.");
 }
