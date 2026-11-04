@@ -44,10 +44,10 @@ export function verifyOTP(phone: string, otp: string): boolean {
   return true;
 }
 
-// Fast2SMS WhatsApp API
+// Fast2SMS WhatsApp API - using template-based messaging
 export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise<{ success: boolean; message: string }> {
   try {
-    // Format phone number - Fast2SMS expects without +91 prefix or with country code
+    // Format phone number - remove +91 prefix
     let formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
     if (formattedPhone.startsWith("91")) {
       formattedPhone = formattedPhone.substring(2);
@@ -56,7 +56,8 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
       formattedPhone = "91" + formattedPhone;
     }
 
-    const url = "https://www.fast2sms.com/dev/api/whatsapp-v2";
+    // Fast2SMS WhatsApp API endpoint
+    const url = "https://www.fast2sms.com/dev/whatsapp";
 
     const response = await fetch(url, {
       method: "POST",
@@ -65,36 +66,32 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: FAST2SMS_CONFIG.WABA_ID,
-        to: formattedPhone,
-        type: "template",
-        template: {
-          name: "otp",
-          language: { code: "en" },
-          component_type: "body",
-          parameters: [
-            { type: "text", text: otp }
-          ],
-        },
-        messaging_product: "whatsapp",
+        route: "whatsapp",
+        template_id: FAST2SMS_CONFIG.TEMPLATE_ID,
+        numbers: [formattedPhone],
+        variables: {
+          otp: otp
+        }
       }),
     });
 
     const result = await response.json();
+    console.log("Fast2SMS WhatsApp response:", result);
+    
     return {
-      success: response.ok,
-      message: result.message || result.error || "OTP sent",
+      success: result.return === true,
+      message: result.message || result.error || (result.return ? "OTP sent via WhatsApp" : "Failed to send WhatsApp OTP"),
     };
   } catch (error: any) {
-    console.error("Fast2SMS error:", error);
+    console.error("Fast2SMS WhatsApp error:", error);
     return {
       success: false,
-      message: error.message || "Failed to send OTP",
+      message: error.message || "Failed to send WhatsApp OTP",
     };
   }
 }
 
-// Fallback to SMS if WhatsApp fails
+// Fallback to SMS
 export async function sendSMOTP(phoneNumber: string, otp: string): Promise<{ success: boolean; message: string }> {
   try {
     let formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
@@ -102,6 +99,7 @@ export async function sendSMOTP(phoneNumber: string, otp: string): Promise<{ suc
       formattedPhone = "91" + formattedPhone;
     }
 
+    // Fast2SMS SMS API endpoint
     const url = "https://www.fast2sms.com/dev/bulkV2";
 
     const response = await fetch(url, {
@@ -121,15 +119,17 @@ export async function sendSMOTP(phoneNumber: string, otp: string): Promise<{ suc
     });
 
     const result = await response.json();
+    console.log("Fast2SMS SMS response:", result);
+    
     return {
       success: response.ok && result.return && result.return === true,
-      message: result.message || result.return?.msg || "OTP sent",
+      message: result.message || result.return?.msg || "OTP sent via SMS",
     };
   } catch (error: any) {
     console.error("Fast2SMS SMS error:", error);
     return {
       success: false,
-      message: error.message || "Failed to send OTP",
+      message: error.message || "Failed to send SMS",
     };
   }
 }
