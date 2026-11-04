@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { queryProviderByPhoneOrId } from "@/lib/db";
 
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "shrawasti-da98e";
@@ -144,13 +144,13 @@ export async function requireAdminUser(request: Request) {
     return { error, status, user: null };
   }
 
-  const { data, error: profileError } = await supabase
+  const ids = [user.id, user.raw_uid].filter(Boolean);
+  const { data, error: profileError } = await supabaseAdmin
     .from("users")
     .select("role")
-    .eq("id", user.id)
-    .single();
+    .in("id", ids);
 
-  if (profileError || !data || data.role !== "admin") {
+  if (profileError || !data?.some((row) => row.role === "admin")) {
     return { error: "Forbidden: Admin access required", status: 403, user: null };
   }
 

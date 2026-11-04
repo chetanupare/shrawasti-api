@@ -1,22 +1,20 @@
 import { NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
-import { getFirebaseUuid } from "@/lib/auth";
+import { requireAuth } from "@/middleware/auth";
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return NextResponse.json({ error: "userId parameter is required" }, { status: 400 });
+    // Get authenticated user
+    const { error: authError, user } = await requireAuth(request);
+    if (authError || !user) {
+      return NextResponse.json({ error: authError || "Unauthorized" }, { status: 401 });
     }
 
-    const uuid = getFirebaseUuid(userId) || userId;
-
+    // Get user profile
     const { data, error } = await supabaseAdmin
       .from("users")
       .select("*")
-      .or(`id.eq.${userId},id.eq.${uuid}`)
+      .eq("id", user.userId)
       .maybeSingle();
 
     if (error) {
@@ -45,15 +43,20 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { id, name, email, phone, profileImage } = body;
+    const { error: authError, user } = await requireAuth(request);
+    if (authError || !user) {
+      return NextResponse.json({ error: authError || "Unauthorized" }, { status: 401 });
+    }
 
-    if (!id || !name) {
-      return NextResponse.json({ error: "id and name are required" }, { status: 400 });
+    const body = await request.json();
+    const { name, email, phone, profileImage } = body;
+
+    if (!name) {
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
 
     const userData: Record<string, any> = {
-      id,
+      id: user.userId,
       name,
       updated_at: new Date().toISOString(),
     };

@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Coupon code and subtotal are required" }, { status: 400 });
     }
 
-    const quote = quoteCoupon(code, Number(subtotal) || 0);
+    const quote = await quoteCoupon(code, Number(subtotal) || 0);
     if (quote.error) {
       return NextResponse.json({ error: quote.error }, { status: quote.status });
     }

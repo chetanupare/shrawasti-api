@@ -2,25 +2,24 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { calcTotals, getPriceFor, Service } from "@/lib/pricing";
 import { loadServicePrices } from "@/lib/servicePrices";
-import { requireAuthenticatedUser, ensureUserExists } from "@/lib/auth";
+import { requireAuth } from "@/middleware/auth";
 import { createRazorpayOrderForBooking } from "@/lib/razorpayOrder";
-import { quoteCoupon } from "@/lib/coupons";
+import { quoteCoupon, redeemCoupon } from "@/lib/coupons";
 
 export async function GET(request: Request) {
   try {
-    const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
+    const { error: authError, user } = await requireAuth(request);
     if (authError || !user) {
-      return NextResponse.json({ error: authError || "Authentication required" }, { status: authStatus || 401 });
+      return NextResponse.json({ error: authError || "Authentication required" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
-    const ownerIds = [user.id, user.raw_uid].filter(Boolean);
 
     let query = supabaseAdmin
       .from("bookings")
       .select("*")
-      .in("user_id", ownerIds);
+      .eq("user_id", user.userId);
 
     if (status) {
       query = query.eq("status", status);
@@ -61,13 +60,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
+    const { error: authError, user } = await requireAuth(request);
     if (authError || !user) {
-      return NextResponse.json({ error: authError || "Authentication required" }, { status: authStatus || 401 });
+      return NextResponse.json({ error: authError || "Authentication required" }, { status: 401 });
     }
 
-    await ensureUserExists(user);
-    const trueUserId = user.id;
+    const trueUserId = user.userId;
     const body = await request.json();
     const {
       vehicleId,
@@ -168,7 +166,7 @@ export async function POST(request: Request) {
       price: getPriceFor(s, bodyType) ?? s.basePrice ?? 0
     }));
     const { subtotal, total: grossTotal } = calcTotals(fullServices, bodyType);
-    const quote = quoteCoupon(body.couponCode, grossTotal);
+    const quote = await quoteCoupon(body.couponCode, grossTotal);
     if (quote.error) {
       return NextResponse.json({ error: quote.error }, { status: quote.status });
     }
@@ -277,6 +275,10 @@ export async function POST(request: Request) {
          }
       }
       return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+
+    if (quote.couponId && discount > 0) {
+      await redeemCoupon(quote.couponId);
     }
 
     if (initialStatus === "confirmed") {

@@ -1,43 +1,45 @@
 import { NextResponse } from "next/server";
-import { supabase, supabaseAdmin } from "@/lib/supabase";
-import { getFirebaseUuid } from "@/lib/auth";
+import { supabaseAdmin } from "@/lib/supabase";
+import { ensureUserExists, requireAuthenticatedUser } from "@/lib/auth";
+
+function ownerIds(user: { id: string; raw_uid?: string }) {
+  return [user.id, user.raw_uid].filter(Boolean);
+}
+
+function mapLocation(loc: any) {
+  return {
+    id: loc.id,
+    userId: loc.user_id,
+    label: loc.label,
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+    address: loc.address,
+    buildingName: loc.building_name,
+    houseNumber: loc.house_number,
+    landmark: loc.landmark,
+    createdAt: loc.created_at,
+    updatedAt: loc.updated_at,
+  };
+}
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return NextResponse.json({ error: "userId parameter is required" }, { status: 400 });
+    const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
+    if (authError || !user) {
+      return NextResponse.json({ error: authError || "Authentication required" }, { status: authStatus || 401 });
     }
 
-    const uuid = getFirebaseUuid(userId) || userId;
-
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("saved_locations")
       .select("*")
-      .or(`user_id.eq.${userId},user_id.eq.${uuid}`)
+      .in("user_id", ownerIds(user))
       .order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const locations = (data || []).map((loc) => ({
-      id: loc.id,
-      userId: loc.user_id,
-      label: loc.label,
-      latitude: loc.latitude,
-      longitude: loc.longitude,
-      address: loc.address,
-      buildingName: loc.building_name,
-      houseNumber: loc.house_number,
-      landmark: loc.landmark,
-      createdAt: loc.created_at,
-      updatedAt: loc.updated_at,
-    }));
-
-    return NextResponse.json({ locations });
+    return NextResponse.json({ locations: (data || []).map(mapLocation) });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -45,61 +47,44 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { userId, label, latitude, longitude, address, buildingName, houseNumber, landmark } = body;
+    const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
+    if (authError || !user) {
+      return NextResponse.json({ error: authError || "Authentication required" }, { status: authStatus || 401 });
+    }
 
-    if (!userId || latitude === undefined || longitude === undefined || !address) {
+    await ensureUserExists(user);
+    const body = await request.json();
+    const { label, latitude, longitude, address, buildingName, houseNumber, landmark } = body;
+
+    if (latitude === undefined || longitude === undefined || !address) {
       return NextResponse.json(
-        { error: "Missing required location fields (userId, latitude, longitude, address)" },
+        { error: "Missing required location fields (latitude, longitude, address)" },
         { status: 400 }
       );
     }
 
-    // Ensure user exists to satisfy foreign key constraint without overwriting existing user name
-    const { data: existingUser } = await supabaseAdmin.from("users").select("id").eq("id", userId).maybeSingle();
-    if (!existingUser) {
-      await supabaseAdmin.from("users").insert({ id: userId, name: "Customer" });
-    }
-
-    const newLocation = {
-      user_id: userId,
-      label: label || "Home",
-      latitude,
-      longitude,
-      address,
-      building_name: (buildingName && buildingName.trim() !== '') ? buildingName.trim() : (address ? address.split(',')[0] : 'Location'),
-      house_number: houseNumber || null,
-      landmark: landmark || null,
-    };
-
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("saved_locations")
-      .insert(newLocation)
+      .insert({
+        user_id: user.id,
+        label: label || "Home",
+        latitude,
+        longitude,
+        address,
+        building_name: (buildingName && String(buildingName).trim() !== "")
+          ? String(buildingName).trim()
+          : (address ? String(address).split(",")[0] : "Location"),
+        house_number: houseNumber || null,
+        landmark: landmark || null,
+      })
       .select()
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error || !data) {
+      return NextResponse.json({ error: error?.message || "Could not save location" }, { status: 500 });
     }
 
-    return NextResponse.json(
-      {
-        location: {
-          id: data.id,
-          userId: data.user_id,
-          label: data.label,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          address: data.address,
-          buildingName: data.building_name,
-          houseNumber: data.house_number,
-          landmark: data.landmark,
-          createdAt: data.created_at,
-          updatedAt: data.updated_at,
-        },
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ location: mapLocation(data) }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

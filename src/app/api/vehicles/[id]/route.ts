@@ -1,5 +1,41 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
+import { requireAuthenticatedUser } from "@/lib/auth";
+
+function owns(user: { id: string; raw_uid?: string }, ownerId: string | null | undefined) {
+  return !!ownerId && (ownerId === user.id || ownerId === user.raw_uid);
+}
+
+function mapVehicle(v: any) {
+  return {
+    id: v.id,
+    userId: v.user_id,
+    type: v.type,
+    bodyType: v.body_type,
+    make: v.make,
+    model: v.model,
+    registrationNumber: v.registration_number,
+    nickname: v.nickname,
+    color: v.color,
+    isManual: v.is_manual,
+    createdAt: v.created_at,
+    updatedAt: v.updated_at,
+  };
+}
+
+async function loadOwnedVehicle(request: Request, id: string) {
+  const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
+  if (authError || !user) {
+    return { error: authError || "Authentication required", status: authStatus || 401, user: null, vehicle: null };
+  }
+
+  const { data, error } = await supabaseAdmin.from("vehicles").select("*").eq("id", id).maybeSingle();
+  if (error) return { error: error.message, status: 500, user, vehicle: null };
+  if (!data || !owns(user, data.user_id)) {
+    return { error: "Vehicle not found", status: 404, user, vehicle: null };
+  }
+  return { error: null, status: 200, user, vehicle: data };
+}
 
 export async function GET(
   request: Request,
@@ -7,32 +43,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const { data, error } = await supabase
-      .from("vehicles")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error || !data) {
-      return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
+    const loaded = await loadOwnedVehicle(request, id);
+    if (loaded.error || !loaded.vehicle) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status });
     }
-
-    return NextResponse.json({
-      vehicle: {
-        id: data.id,
-        userId: data.user_id,
-        type: data.type,
-        bodyType: data.body_type,
-        make: data.make,
-        model: data.model,
-        registrationNumber: data.registration_number,
-        nickname: data.nickname,
-        color: data.color,
-        isManual: data.is_manual,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      },
-    });
+    return NextResponse.json({ vehicle: mapVehicle(loaded.vehicle) });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -44,8 +59,12 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
+    const loaded = await loadOwnedVehicle(request, id);
+    if (loaded.error || !loaded.vehicle || !loaded.user) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status });
+    }
 
+    const body = await request.json();
     const updates: Record<string, any> = {};
     if (body.type !== undefined) updates.type = body.type;
     if (body.bodyType !== undefined) updates.body_type = body.bodyType;
@@ -56,33 +75,19 @@ export async function PUT(
     if (body.color !== undefined) updates.color = body.color;
     if (body.isManual !== undefined) updates.is_manual = body.isManual;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("vehicles")
       .update(updates)
       .eq("id", id)
+      .eq("user_id", loaded.vehicle.user_id)
       .select()
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error || !data) {
+      return NextResponse.json({ error: error?.message || "Could not update vehicle" }, { status: 500 });
     }
 
-    return NextResponse.json({
-      vehicle: {
-        id: data.id,
-        userId: data.user_id,
-        type: data.type,
-        bodyType: data.body_type,
-        make: data.make,
-        model: data.model,
-        registrationNumber: data.registration_number,
-        nickname: data.nickname,
-        color: data.color,
-        isManual: data.is_manual,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      },
-    });
+    return NextResponse.json({ vehicle: mapVehicle(data) });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -94,7 +99,16 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const { error } = await supabase.from("vehicles").delete().eq("id", id);
+    const loaded = await loadOwnedVehicle(request, id);
+    if (loaded.error || !loaded.vehicle) {
+      return NextResponse.json({ error: loaded.error }, { status: loaded.status });
+    }
+
+    const { error } = await supabaseAdmin
+      .from("vehicles")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", loaded.vehicle.user_id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
