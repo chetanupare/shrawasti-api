@@ -6,6 +6,7 @@ export const FAST2SMS_CONFIG = {
   WABA_ID: process.env.FAST2SMS_WABA_ID || "1593792026096959",
   PHONE_NUMBER_ID: process.env.FAST2SMS_PHONE_NUMBER_ID || "1341820212357676",
   TEMPLATE_ID: process.env.FAST2SMS_TEMPLATE_ID || "2228535738070252",
+  MESSAGE_ID: process.env.FAST2SMS_MESSAGE_ID || "41414",
   SENDER_NUMBER: process.env.FAST2SMS_SENDER_NUMBER || "+919168143290",
 };
 
@@ -47,16 +48,12 @@ export function verifyOTP(phone: string, otp: string): boolean {
 // Fast2SMS WhatsApp API - using template-based messaging
 export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise<{ success: boolean; message: string }> {
   try {
-    // Format phone number - remove +91 prefix
+    // Format phone number - ensure 10-digit format
     let formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
-    if (formattedPhone.startsWith("91")) {
-      formattedPhone = formattedPhone.substring(2);
-    }
-    if (!formattedPhone.startsWith("91")) {
-      formattedPhone = "91" + formattedPhone;
+    if (formattedPhone.length === 10 && !formattedPhone.startsWith("91")) {
+      // Keep as 10-digit, Fast2SMS handles it
     }
 
-    // Fast2SMS WhatsApp API endpoint
     const url = "https://www.fast2sms.com/dev/whatsapp";
 
     const response = await fetch(url, {
@@ -67,6 +64,7 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
       },
       body: JSON.stringify({
         route: "whatsapp",
+        message_id: FAST2SMS_CONFIG.MESSAGE_ID,
         template_id: FAST2SMS_CONFIG.TEMPLATE_ID,
         numbers: [formattedPhone],
         variables: {
@@ -80,7 +78,7 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
     
     return {
       success: result.return === true,
-      message: result.message || result.error || (result.return ? "OTP sent via WhatsApp" : "Failed to send WhatsApp OTP"),
+      message: result.message ? (Array.isArray(result.message) ? result.message[0] : result.message) : (result.return ? "OTP sent via WhatsApp" : "Failed to send WhatsApp OTP"),
     };
   } catch (error: any) {
     console.error("Fast2SMS WhatsApp error:", error);
