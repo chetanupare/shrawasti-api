@@ -81,12 +81,13 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
     const url = new URL('https://www.fast2sms.com/dev/whatsapp');
 
     // Build query parameters
-    url.searchParams.append('message_id', FAST2SMS_CONFIG.TEMPLATE_ID);
+    // Use MESSAGE_ID (template ID) - foodizm pattern uses this
+    const templateId = FAST2SMS_CONFIG.MESSAGE_ID || FAST2SMS_CONFIG.TEMPLATE_ID;
+    url.searchParams.append('message_id', templateId);
     url.searchParams.append('phone_number_id', FAST2SMS_CONFIG.PHONE_NUMBER_ID);
     url.searchParams.append('numbers', formattedPhone);
-    // Template uses {{1}} placeholder for OTP
-    // Template format: "{{1}} is your verification code. For your security, do not share this code."
-    // First placeholder {{1}} receives the OTP value
+    // For authentication templates: pass OTP directly as single variable
+    // Template format should be: "{{1}} is your verification code" or similar
     url.searchParams.append('variables_values', otp);
 
     const response = await fetch(url.toString(), {
