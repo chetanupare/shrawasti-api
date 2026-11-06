@@ -81,7 +81,8 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
     const url = new URL('https://www.fast2sms.com/dev/whatsapp');
 
     // Build query parameters
-    // Use MESSAGE_ID (template ID) - foodizm uses 41414 successfully
+    // Use MESSAGE_ID (41414) - this is the working template from foodizm
+    // For OTP: {{1}} is your verification code. For your security, do not share this code.
     const templateId = FAST2SMS_CONFIG.MESSAGE_ID || FAST2SMS_CONFIG.TEMPLATE_ID;
     url.searchParams.append('message_id', templateId);
     url.searchParams.append('phone_number_id', FAST2SMS_CONFIG.PHONE_NUMBER_ID);
