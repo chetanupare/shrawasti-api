@@ -1,25 +1,55 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { requireAuthenticatedUser } from "@/lib/auth";
 import { queryProviderByPhoneOrId } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const providerId = searchParams.get("providerId") || searchParams.get("phone");
+    const providerId = searchParams.get("providerId");
+    const phone = searchParams.get("phone");
+    const useAdmin = searchParams.get("admin") === "true";
 
-    if (!providerId) {
+    // Allow phone-based lookup for profile sync without auth (for OTP flow)
+    if (phone && !useAdmin) {
+      const provider = await queryProviderByPhoneOrId(phone);
+      if (provider) {
+        return NextResponse.json({
+          provider: {
+            id: provider.id,
+            name: provider.name,
+            phone: provider.phone,
+            email: provider.email,
+            profileImage: provider.profile_image,
+            rating: parseFloat(provider.rating || 5.0),
+            totalJobs: provider.total_jobs || 0,
+            isOnline: provider.is_online ?? true,
+            status: provider.status || "active",
+            currentLat: provider.current_lat,
+            currentLng: provider.current_lng,
+            createdAt: provider.created_at,
+            updatedAt: provider.updated_at,
+          },
+        });
+      }
+      return NextResponse.json({ provider: null });
+    }
+
+    const resolvedProviderId = providerId || phone;
+
+    if (!resolvedProviderId) {
       return NextResponse.json({ error: "providerId or phone parameter is required" }, { status: 400 });
     }
 
+    // Authenticated lookup (existing logic)
     const { user } = await requireAuthenticatedUser(request);
     if (user) {
       const authPhone = user.phone || user.user_metadata?.phone || "";
       const cleanAuthPhone = authPhone.replace(/\D/g, "");
-      const cleanReqId = providerId.replace(/\D/g, "");
+      const cleanReqId = resolvedProviderId.replace(/\D/g, "");
 
       const isAuthorized =
-        providerId === user.id ||
+        resolvedProviderId === user.id ||
         cleanReqId.length >= 10 ||
         (cleanAuthPhone && cleanReqId && cleanAuthPhone.endsWith(cleanReqId.slice(-10)));
 
@@ -28,8 +58,8 @@ export async function GET(request: Request) {
       }
     }
 
-    const userPhone = user?.phone || user?.user_metadata?.phone || providerId;
-    let provider = await queryProviderByPhoneOrId(providerId);
+    const userPhone = user?.phone || user?.user_metadata?.phone || resolvedProviderId;
+    let provider = await queryProviderByPhoneOrId(resolvedProviderId);
     if (!provider && userPhone) {
       provider = await queryProviderByPhoneOrId(userPhone);
     }

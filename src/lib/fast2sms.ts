@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { supabaseAdmin } from "./supabase";
 
 // Configuration - read from environment
 export const FAST2SMS_CONFIG = {
@@ -10,38 +11,55 @@ export const FAST2SMS_CONFIG = {
   SENDER_NUMBER: process.env.FAST2SMS_SENDER_NUMBER || "+919168143290",
 };
 
-// OTP storage (in production, use Redis)
-export const otpStore = new Map<string, { otp: string; expiresAt: number }>();
-
 // Generate 6-digit OTP
 export function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Store OTP with expiry and auto-cleanup
-export function storeOTP(phone: string, otp: string, ttlMinutes = 5): void {
-  const expiresAt = Date.now() + ttlMinutes * 60 * 1000;
-  otpStore.set(phone, { otp, expiresAt });
+// Store OTP in Supabase (works across serverless instances)
+export async function storeOTP(phone: string, otp: string, ttlMinutes = 5): Promise<void> {
+  const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
 
-  // Auto-cleanup after TTL
-  setTimeout(() => {
-    const entry = otpStore.get(phone);
-    if (entry && entry.expiresAt <= Date.now()) {
-      otpStore.delete(phone);
-    }
-  }, ttlMinutes * 60 * 1000);
+  const { error } = await supabaseAdmin
+    .from("otp_codes")
+    .upsert({
+      phone,
+      otp,
+      expires_at: expiresAt,
+      created_at: new Date().toISOString(),
+    }, { onConflict: "phone" });
+
+  if (error) {
+    console.error("Error storing OTP:", error);
+    throw new Error("Failed to store OTP");
+  }
 }
 
-// Verify stored OTP
-export function verifyOTP(phone: string, otp: string): boolean {
-  const entry = otpStore.get(phone);
-  if (!entry) return false;
-  if (Date.now() > entry.expiresAt) {
-    otpStore.delete(phone);
+// Verify stored OTP from Supabase
+export async function verifyOTP(phone: string, otp: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("otp_codes")
+    .select("otp, expires_at")
+    .eq("phone", phone)
+    .single();
+
+  if (error || !data) {
     return false;
   }
-  if (entry.otp !== otp) return false;
-  otpStore.delete(phone);
+
+  const expiresAt = new Date(data.expires_at).getTime();
+  if (Date.now() > expiresAt) {
+    // Clean up expired OTP
+    await supabaseAdmin.from("otp_codes").delete().eq("phone", phone);
+    return false;
+  }
+
+  if (data.otp !== otp) {
+    return false;
+  }
+
+  // Delete OTP after successful verification
+  await supabaseAdmin.from("otp_codes").delete().eq("phone", phone);
   return true;
 }
 

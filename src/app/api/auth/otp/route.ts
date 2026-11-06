@@ -1,25 +1,48 @@
 import { NextResponse } from "next/server";
-import { generateOTP, storeOTP, verifyOTP, sendWhatsAppOTP, sendSMOTP } from "@/lib/fast2sms";
-import { getFirebaseUuid } from "@/lib/auth";
+import { generateOTP, storeOTP, sendWhatsAppOTP, sendSMOTP } from "@/lib/fast2sms";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// Rate limiting
-const otpAttempts = new Map<string, { count: number; lastAttempt: number }>();
+// Rate limiting - use Supabase for persistence across serverless instances
+async function isRateLimited(phone: string): Promise<boolean> {
+  const now = new Date();
+  const oneMinuteAgo = new Date(now.getTime() - 60000);
 
-function isRateLimited(phone: string): boolean {
-  const now = Date.now();
-  const attempt = otpAttempts.get(phone);
-  
-  if (!attempt || (now - attempt.lastAttempt) > 60000) {
-    otpAttempts.set(phone, { count: 1, lastAttempt: now });
+  const { data, error } = await supabaseAdmin
+    .from("otp_rate_limits")
+    .select("count, last_attempt")
+    .eq("phone", phone)
+    .single();
+
+  if (error) {
+    // Table might not exist, allow the attempt
     return false;
   }
-  
-  if (attempt.count >= 3) {
+
+  const lastAttempt = new Date(data.last_attempt);
+  if (lastAttempt < oneMinuteAgo) {
+    // Reset count
+    await supabaseAdmin
+      .from("otp_rate_limits")
+      .upsert({
+        phone,
+        count: 1,
+        last_attempt: now.toISOString(),
+      });
+    return false;
+  }
+
+  if (data.count >= 3) {
     return true;
   }
-  
-  otpAttempts.set(phone, { count: attempt.count + 1, lastAttempt: now });
+
+  await supabaseAdmin
+    .from("otp_rate_limits")
+    .update({
+      count: data.count + 1,
+      last_attempt: now.toISOString()
+    })
+    .eq("phone", phone);
+
   return false;
 }
 
@@ -45,7 +68,7 @@ export async function POST(request: Request) {
     }
 
     // Rate limiting
-    if (isRateLimited(cleanPhone)) {
+    if (await isRateLimited(cleanPhone)) {
       return NextResponse.json(
         { error: "Too many attempts. Please wait 1 minute before trying again." },
         { status: 429 }
@@ -54,8 +77,8 @@ export async function POST(request: Request) {
 
     // Generate OTP
     const otp = generateOTP();
-    storeOTP(cleanPhone, otp);
-    
+    await storeOTP(cleanPhone, otp);
+
     console.log(`[OTP Debug] Generated OTP for ${cleanPhone}`);
 
     // Try WhatsApp first
@@ -72,9 +95,9 @@ export async function POST(request: Request) {
     if (!result.success) {
       console.error("Failed to send OTP via both channels:", result.message);
       return NextResponse.json(
-        { 
+        {
           error: "Failed to send OTP. Please check your Fast2SMS configuration or try again later.",
-          details: result.message 
+          details: result.message
         },
         { status: 500 }
       );

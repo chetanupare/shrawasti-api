@@ -1,7 +1,11 @@
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
 
-const JWT_SECRET = process.env.JWT_SECRET || "shrawasti-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.warn("WARNING: JWT_SECRET environment variable is not set. Token verification will fail.");
+}
 
 export interface JwtPayload {
   userId: string;
@@ -12,6 +16,10 @@ export interface JwtPayload {
 }
 
 export function verifyJwtToken(token: string): JwtPayload | null {
+  if (!JWT_SECRET) {
+    console.error("JWT_SECRET not configured");
+    return null;
+  }
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
     return decoded;

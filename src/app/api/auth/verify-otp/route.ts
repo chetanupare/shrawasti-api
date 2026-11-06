@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { verifyOTP, otpStore } from "@/lib/fast2sms";
-import { getFirebaseUuid } from "@/lib/auth";
+import { verifyOTP } from "@/lib/fast2sms";
 import { supabaseAdmin } from "@/lib/supabase";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "shrawasti-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET!;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required. Please set it in .env.local");
+}
 
 interface UserPayload {
   userId: string;
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
     }
 
     // Verify OTP
-    const isValid = verifyOTP(cleanPhone, otp);
+    const isValid = await verifyOTP(cleanPhone, otp);
     if (!isValid) {
       return NextResponse.json(
         { error: "Invalid or expired OTP" },

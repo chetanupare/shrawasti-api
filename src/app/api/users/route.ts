@@ -4,17 +4,53 @@ import { requireAuth } from "@/middleware/auth";
 
 export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const userId = url.searchParams.get("userId");
+    const phone = url.searchParams.get("phone");
+    const decoded = url.searchParams.get("decoded");
+
+    // For phone-based lookups (no auth required yet - used during OTP sync)
+    if (phone && !decoded) {
+      const { data, error } = await supabaseAdmin
+        .from("users")
+        .select("*")
+        .eq("phone", phone)
+        .maybeSingle();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      if (!data) {
+        return NextResponse.json({ user: null });
+      }
+
+      return NextResponse.json({
+        user: {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          profileImage: data.profile_image,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+          role: data.role,
+        },
+      });
+    }
+
     // Get authenticated user
     const { error: authError, user } = await requireAuth(request);
     if (authError || !user) {
       return NextResponse.json({ error: authError || "Unauthorized" }, { status: 401 });
     }
 
-    // Get user profile
+    // Get user profile - use userId param if provided (for phone-based lookups)
+    const targetUserId = userId || user.userId;
     const { data, error } = await supabaseAdmin
       .from("users")
       .select("*")
-      .eq("id", user.userId)
+      .eq("id", targetUserId)
       .maybeSingle();
 
     if (error) {
