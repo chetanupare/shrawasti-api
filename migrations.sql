@@ -2,16 +2,6 @@
 -- https://supabase.com/dashboard/project/<project-id>/database/sql
 --
 -- These migrations create the OTP authentication tables for Fast2SMS WhatsApp OTP
--- and insert a test coupon.
---
--- IMPORTANT: The OTP table requires RLS policies that allow:
--- 1. Service role to INSERT/UPDATE/DELETE (bypasses via SUPABASE_SERVICE_ROLE_KEY)
--- 2. Authenticated users to SELECT their own OTP (for admin/debug purposes)
---
--- Note: For OTP verification to work without auth, you may need to:
--- - Temporarily disable RLS on otp_codes table, OR
--- - Use the SUPABASE_SERVICE_ROLE_KEY which bypasses all RLS, OR
--- - Add a policy allowing anon SELECT for specific phone numbers
 
 -- 1. OTP codes table - stores OTPs for authentication
 CREATE TABLE IF NOT EXISTS public.otp_codes (
@@ -29,6 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_otp_codes_expires_at ON public.otp_codes(expires_
 ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Authenticated users can read their own OTPs
+-- Note: Service role key bypasses all RLS for INSERT/UPDATE/DELETE operations
 CREATE POLICY "otp_user_access" ON public.otp_codes
     FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
@@ -42,12 +33,9 @@ CREATE TABLE IF NOT EXISTS public.otp_rate_limits (
 
 ALTER TABLE public.otp_rate_limits ENABLE ROW LEVEL SECURITY;
 
--- 3. Insert test coupon
-INSERT INTO public.coupons (code, discount_type, discount_value, description, min_order_amount)
-VALUES ('WELCOME50', 'percentage', 50, '50% off first booking', 100)
-ON CONFLICT (code) DO NOTHING;
+-- Note: Service role key bypasses all RLS for all operations on this table
 
--- 4. Create indexes for existing tables
+-- 3. Create indexes for existing tables (if they exist)
 CREATE INDEX IF NOT EXISTS idx_users_phone ON public.users(phone);
 CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON public.bookings(user_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_provider_id ON public.bookings(provider_id);

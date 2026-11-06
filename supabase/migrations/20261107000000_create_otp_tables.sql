@@ -14,8 +14,8 @@ CREATE INDEX IF NOT EXISTS idx_otp_codes_expires_at ON public.otp_codes(expires_
 
 ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
 
--- Allow authenticated users to read their own OTPs
--- Service role key bypasses RLS for all operations
+-- Policy: Authenticated users can read their own OTPs
+-- Note: SUPABASE_SERVICE_ROLE_KEY bypasses all RLS for INSERT/UPDATE/DELETE
 CREATE POLICY IF NOT EXISTS "otp_user_access" ON public.otp_codes
     FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
@@ -30,10 +30,4 @@ CREATE TABLE IF NOT EXISTS public.otp_rate_limits (
 
 ALTER TABLE public.otp_rate_limits ENABLE ROW LEVEL SECURITY;
 
--- Service role key bypasses RLS for all operations
-
--- Insert a test coupon if not exists
--- Note: coupons table schema uses discount_type/discount_value instead of type/value
-INSERT INTO public.coupons (code, discount_type, discount_value, description, min_order_amount)
-VALUES ('WELCOME50', 'percentage', 50, '50% off first booking', 100)
-ON CONFLICT (code) DO NOTHING;
+-- Note: SUPABASE_SERVICE_ROLE_KEY bypasses all RLS for all operations on this table
