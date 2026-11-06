@@ -66,56 +66,83 @@ export async function verifyOTP(phone: string, otp: string): Promise<boolean> {
 // Fast2SMS WhatsApp API - using template-based messaging
 export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise<{ success: boolean; message: string }> {
   try {
-    // Format phone number to E.164 format (+91XXXXXXXXXX)
-    let formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
-    if (formattedPhone.length === 10) {
-      formattedPhone = "91" + formattedPhone;
+    // Format phone number - 10-digit Indian number without +91 prefix
+    let formattedPhone = phoneNumber.replace(/^\+91/, '').replace(/\D/g, '');
+
+    // Ensure exactly 10 digits
+    if (formattedPhone.length !== 10) {
+      formattedPhone = formattedPhone.replace(/\D/g, '');
+      if (formattedPhone.length > 10) {
+        formattedPhone = formattedPhone.slice(-10);
+      }
     }
-    formattedPhone = "+" + formattedPhone;
 
-    // Use Fast2SMS v2 WhatsApp Business API endpoint
-    const url = "https://www.fast2sms.com/dev/v2/whatsapp";
+    // Use Fast2SMS WhatsApp Business API endpoint (GET request)
+    const url = new URL('https://www.fast2sms.com/dev/whatsapp');
 
-    const response = await fetch(url, {
-      method: "POST",
+    // Build query parameters
+    url.searchParams.append('message_id', FAST2SMS_CONFIG.TEMPLATE_ID);
+    url.searchParams.append('phone_number_id', FAST2SMS_CONFIG.PHONE_NUMBER_ID);
+    url.searchParams.append('numbers', formattedPhone);
+    // Template uses {{1}} placeholder for OTP
+    // Template format: "{{1}} is your verification code. For your security, do not share this code."
+    // First placeholder {{1}} receives the OTP value
+    url.searchParams.append('variables_values', otp);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
       headers: {
-        "authorization": FAST2SMS_CONFIG.API_KEY,
-        "Content-Type": "application/json",
+        'Authorization': FAST2SMS_CONFIG.API_KEY,
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        mobile_number: formattedPhone,
-        message: {
-          template_id: FAST2SMS_CONFIG.TEMPLATE_ID,
-          variables: {
-            otp: otp
-          }
-        }
-      }),
     });
 
     const result = await response.json();
-    console.log("Fast2SMS WhatsApp response:", JSON.stringify(result, null, 2));
+    console.log('Fast2SMS WhatsApp response:', JSON.stringify(result, null, 2));
 
     // Check for successful response
-    // Fast2SMS v2 returns { success: { message_id: "..." } } or { error: "..." }
-    if (result.success && result.success.message_id) {
+    // Fast2SMS returns { status: true, message: "Message sent successfully" }
+    if (result.status === true) {
       return {
         success: true,
-        message: "OTP sent via WhatsApp",
+        message: 'OTP sent via WhatsApp',
       };
     }
 
     // Handle error responses
-    const errorMsg = result.error || result.message || "Failed to send WhatsApp OTP";
+    // Error codes: 413=API disabled, 424=invalid template, 425=template not approved
+    const errorMsg = result.message || 'Failed to send WhatsApp OTP';
+    const errorCode = (result as any).error_code;
+
+    // Provide specific guidance based on error code
+    if (errorCode === 413) {
+      return {
+        success: false,
+        message: 'Fast2SMS API access disabled. Contact support. Enable Quick API Access in dashboard.',
+      };
+    }
+    if (errorCode === 424 || errorCode === 425) {
+      return {
+        success: false,
+        message: 'Invalid or unapproved template. Verify template ID and approval status.',
+      };
+    }
+    if (errorCode === 996) {
+      return {
+        success: false,
+        message: 'KYC required. Complete KYC in Fast2SMS account.',
+      };
+    }
+
     return {
       success: false,
-      message: errorMsg,
+      message: `${errorMsg} (Code: ${errorCode || 'unknown'})`,
     };
   } catch (error: any) {
-    console.error("Fast2SMS WhatsApp error:", error);
+    console.error('Fast2SMS WhatsApp error:', error);
     return {
       success: false,
-      message: error.message || "Failed to send WhatsApp OTP",
+      message: error.message || 'Failed to send WhatsApp OTP',
     };
   }
 }
