@@ -87,7 +87,8 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
     url.searchParams.append('phone_number_id', FAST2SMS_CONFIG.PHONE_NUMBER_ID);
     url.searchParams.append('numbers', formattedPhone);
     // For authentication templates: pass OTP directly as single variable
-    // Template format should be: "{{1}} is your verification code" or similar
+    // Template should use {{1}} placeholder: "{{1}} is your verification code"
+    // If you're seeing * in the message, the template placeholder format is wrong
     url.searchParams.append('variables_values', otp);
 
     const response = await fetch(url.toString(), {
