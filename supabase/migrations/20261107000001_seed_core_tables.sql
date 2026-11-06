@@ -1,5 +1,6 @@
 -- Ensure core tables exist for authentication and business logic
 -- This migration creates tables that are referenced but may not exist in fresh Supabase projects
+-- Updated for PostgreSQL 17 with proper RLS policy syntax
 
 -- Users table - stores user profiles synced with auth.users
 CREATE TABLE IF NOT EXISTS public.users (
@@ -17,31 +18,28 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
 -- Auth users can read their own profile
 CREATE POLICY IF NOT EXISTS "Users can read their own profile" ON public.users
-    FOR SELECT USING (auth.uid() IS NOT NULL);
+    FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
 -- Authenticated users can update their profile
 CREATE POLICY IF NOT EXISTS "Users can update their own profile" ON public.users
-    FOR UPDATE USING (auth.uid() IS NOT NULL);
+    FOR UPDATE USING ((select auth.uid()) IS NOT NULL);
 
--- Service role can manage users
-CREATE POLICY IF NOT EXISTS "Service role can manage users" ON public.users
-    FOR ALL USING (auth.role() = 'service_role');
+-- Service role can manage users (service_role key bypasses RLS)
 
--- Coupons table
+-- Coupons table - schema adapted to existing Supabase schema
 CREATE TABLE IF NOT EXISTS public.coupons (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
     code TEXT UNIQUE NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('percentage', 'fixed', 'free')),
-    value NUMERIC NOT NULL,
+    discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed', 'free')),
+    discount_value NUMERIC NOT NULL,
     min_order_amount NUMERIC DEFAULT 0,
-    max_discount NUMERIC,
+    max_discount_amount NUMERIC,
     description TEXT,
-    usage_limit INTEGER,
-    used_count INTEGER DEFAULT 0,
+    max_redemptions INTEGER,
+    times_redeemed INTEGER DEFAULT 0,
     expires_at TIMESTAMPTZ,
     is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Enable RLS for coupons
@@ -49,11 +47,10 @@ ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can read active coupons
 CREATE POLICY IF NOT EXISTS "Coupons are public read" ON public.coupons
-    FOR SELECT USING (is_active = true AND (expires_at IS NULL OR expires_at > NOW()));
+    FOR SELECT TO anon
+    USING (is_active = true AND (expires_at IS NULL OR expires_at > NOW()));
 
--- Service role can manage coupons
-CREATE POLICY IF NOT EXISTS "Service role can manage coupons" ON public.coupons
-    FOR ALL USING (auth.role() = 'service_role');
+-- Service role can manage coupons (service_role key bypasses RLS)
 
 -- Providers table
 CREATE TABLE IF NOT EXISTS public.providers (
@@ -83,15 +80,14 @@ ALTER TABLE public.providers ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can read providers
 CREATE POLICY IF NOT EXISTS "Providers are public read" ON public.providers
-    FOR SELECT USING (true);
+    FOR SELECT TO anon USING (true);
 
 -- Authenticated users can insert their provider profile
 CREATE POLICY IF NOT EXISTS "Users can create provider profile" ON public.providers
-    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL AND (user_id = auth.uid() OR user_id IS NULL));
+    FOR INSERT TO authenticated
+    WITH CHECK ((select auth.uid()) IS NOT NULL AND (user_id = (select auth.uid()) OR user_id IS NULL));
 
--- Service role can manage all providers
-CREATE POLICY IF NOT EXISTS "Service role can manage providers" ON public.providers
-    FOR ALL USING (auth.role() = 'service_role');
+-- Service role can manage all providers (service_role key bypasses RLS)
 
 -- Bookings (jobs) table
 CREATE TABLE IF NOT EXISTS public.bookings (
@@ -119,9 +115,7 @@ CREATE TABLE IF NOT EXISTS public.bookings (
 -- Enable RLS for bookings
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
--- Service role can manage all bookings
-CREATE POLICY IF NOT EXISTS "Service role can manage bookings" ON public.bookings
-    FOR ALL USING (auth.role() = 'service_role');
+-- Service role can manage all bookings (service_role key bypasses RLS)
 
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_users_phone ON public.users(phone);

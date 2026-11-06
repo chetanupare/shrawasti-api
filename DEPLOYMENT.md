@@ -27,46 +27,49 @@ CREATE INDEX IF NOT EXISTS idx_otp_codes_expires_at ON public.otp_codes(expires_
 
 ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
 
--- Allow authenticated users to read their own OTPs
-CREATE POLICY IF NOT EXISTS "Users can view their own OTPs" ON public.otp_codes
-    FOR SELECT USING (auth.uid() IS NOT NULL);
-
--- Allow service role to insert/update OTPs
-CREATE POLICY IF NOT EXISTS "Service role can manage OTPs" ON public.otp_codes
-    FOR ALL USING (auth.role() = 'service_role');
+-- Policy: Authenticated users can read their own OTPs
+CREATE POLICY "otp_user_access" ON public.otp_codes
+    FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
 -- OTP rate limits table
 CREATE TABLE IF NOT EXISTS public.otp_rate_limits (
     phone TEXT PRIMARY KEY,
     count INTEGER NOT NULL DEFAULT 1,
     last_attempt TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE public.otp_rate_limits ENABLE ROW LEVEL SECURITY;
-
--- Allow service role to manage rate limits
-CREATE POLICY IF NOT EXISTS "Service role can manage rate limits" ON public.otp_rate_limits
-    FOR ALL USING (auth.role() = 'service_role');
 ```
 
 3. Click **Run** to execute.
 
-### 2. Grant API Access
-
-After creating tables, you need to expose them to the Data API:
-
-1. Go to **Supabase Dashboard** → **Integrations** → **Data API**
-2. Ensure `otp_codes` and `otp_rate_limits` tables are visible to the `anon` and `authenticated` roles
-3. RLS is already enabled above
-
-### 3. Insert Test Coupon
+### 2. Insert Test Coupon
 
 ```sql
-INSERT INTO public.coupons (code, type, value, description, min_order_amount)
+-- Insert a test coupon if not exists
+INSERT INTO public.coupons (code, discount_type, discount_value, description, min_order_amount)
 VALUES ('WELCOME50', 'percentage', 50, '50% off first booking', 100)
 ON CONFLICT (code) DO NOTHING;
 ```
+
+### 3. Create Indexes (for existing tables)
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_users_phone ON public.users(phone);
+CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON public.bookings(user_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_provider_id ON public.bookings(provider_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status ON public.bookings(status);
+CREATE INDEX IF NOT EXISTS idx_bookings_scheduled_at ON public.bookings(scheduled_at);
+```
+
+## API Access Configuration
+
+After creating tables, you may need to expose them to the Data API:
+
+1. Go to **Supabase Dashboard** → **Integrations** → **Data API**
+2. Ensure `otp_codes` and `otp_rate_limits` tables are visible to the `authenticated` role
+3. RLS is already enabled on the tables
 
 ## Environment Variables
 
@@ -112,13 +115,15 @@ Before OTP functionality works:
 ## Testing the API
 
 ```bash
-# Test users endpoint (phone-based lookup)
-curl "https://your-api.vercel.app/api/users?phone=9876543210"
-
 # Test OTP endpoint
 curl -X POST "https://your-api.vercel.app/api/auth/otp" \
   -H "Content-Type: application/json" \
   -d '{"phone": "9876543210", "channel": "whatsapp"}'
+
+# Test verify OTP endpoint (use actual OTP received)
+curl -X POST "https://your-api.vercel.app/api/auth/verify-otp" \
+  -H "Content-Type: application/json" \
+  -d '{"phone": "9876543210", "otp": "123456"}'
 ```
 
 ## Run Migrations Script
@@ -126,5 +131,17 @@ curl -X POST "https://your-api.vercel.app/api/auth/otp" \
 If you have the database connection URL:
 
 ```bash
-DATABASE_URL="postgresql://postgres.kwxjjqvpzxlbivptaath:your_password@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres" node run-migrations.js
+DATABASE_URL="postgresql://postgres.<project-ref>:your_password@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres" node run-migrations-mcp.js
 ```
+
+## Important Notes
+
+1. **SUPABASE_SERVICE_ROLE_KEY bypasses RLS** - When this key is configured and valid (length > 20, not containing placeholder text), the API uses it to bypass all RLS policies for admin operations like OTP storage.
+
+2. **OTP verification flow** - The `verify-otp` endpoint uses the service role key to read OTPs. Make sure SUPABASE_SERVICE_ROLE_KEY is set in your Vercel environment variables.
+
+3. **Table schemas may vary** - The coupons table in Supabase uses different column names than typical schemas:
+   - `discount_type` instead of `type`
+   - `discount_value` instead of `value`
+   - `max_redemptions` instead of `usage_limit`
+   - `times_redeemed` instead of `used_count`

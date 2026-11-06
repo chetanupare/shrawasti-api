@@ -1,5 +1,6 @@
 -- OTP codes table for authentication
-CREATE TABLE public.otp_codes (
+-- This table stores OTPs for Fast2SMS WhatsApp OTP authentication
+CREATE TABLE IF NOT EXISTS public.otp_codes (
     id SERIAL PRIMARY KEY,
     phone TEXT NOT NULL,
     otp TEXT NOT NULL,
@@ -8,21 +9,19 @@ CREATE TABLE public.otp_codes (
     UNIQUE (phone)
 );
 
-CREATE INDEX idx_otp_codes_phone ON public.otp_codes(phone);
-CREATE INDEX idx_otp_codes_expires_at ON public.otp_codes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_otp_codes_phone ON public.otp_codes(phone);
+CREATE INDEX IF NOT EXISTS idx_otp_codes_expires_at ON public.otp_codes(expires_at);
 
 ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
 
 -- Allow authenticated users to read their own OTPs
-CREATE POLICY "Users can view their own OTPs" ON public.otp_codes
-    FOR SELECT USING (auth.uid() IS NOT NULL);
-
--- Allow service role to insert/update OTPs
-CREATE POLICY "Service role can manage OTPs" ON public.otp_codes
-    FOR ALL USING (auth.role() = 'service_role');
+-- Service role key bypasses RLS for all operations
+CREATE POLICY IF NOT EXISTS "otp_user_access" ON public.otp_codes
+    FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
 -- OTP rate limits table
-CREATE TABLE public.otp_rate_limits (
+-- Used to prevent brute force OTP requests
+CREATE TABLE IF NOT EXISTS public.otp_rate_limits (
     phone TEXT PRIMARY KEY,
     count INTEGER NOT NULL DEFAULT 1,
     last_attempt TIMESTAMPTZ NOT NULL,
@@ -31,6 +30,10 @@ CREATE TABLE public.otp_rate_limits (
 
 ALTER TABLE public.otp_rate_limits ENABLE ROW LEVEL SECURITY;
 
--- Allow service role to manage rate limits
-CREATE POLICY "Service role can manage rate limits" ON public.otp_rate_limits
-    FOR ALL USING (auth.role() = 'service_role');
+-- Service role key bypasses RLS for all operations
+
+-- Insert a test coupon if not exists
+-- Note: coupons table schema uses discount_type/discount_value instead of type/value
+INSERT INTO public.coupons (code, discount_type, discount_value, description, min_order_amount)
+VALUES ('WELCOME50', 'percentage', 50, '50% off first booking', 100)
+ON CONFLICT (code) DO NOTHING;
