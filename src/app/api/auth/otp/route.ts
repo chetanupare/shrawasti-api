@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateOTP, storeOTP, sendWhatsAppOTP, sendSMOTP } from "@/lib/fast2sms";
+import { generateOTP, storeOTP, sendWhatsAppOTP } from "@/lib/fast2sms";
 import { supabaseAdmin } from "@/lib/supabase";
 
 // Rate limiting - use Supabase for persistence across serverless instances
@@ -81,25 +81,9 @@ export async function POST(request: Request) {
 
     console.log(`[OTP Debug] Generated OTP for ${cleanPhone}`);
 
-    // Send OTP via requested channel
-    let result: { success: boolean; message: string };
-
-    if (channel === "sms") {
-      // Direct SMS request
-      result = await sendSMOTP(cleanPhone, otp);
-      console.log(`[OTP Debug] SMS result:`, result);
-    } else {
-      // Default to WhatsApp with SMS fallback
-      result = await sendWhatsAppOTP(cleanPhone, otp);
-      console.log(`[OTP Debug] WhatsApp result:`, result);
-
-      // Fallback to SMS if WhatsApp fails
-      if (!result.success) {
-        console.log("WhatsApp failed, falling back to SMS:", result.message);
-        result = await sendSMOTP(cleanPhone, otp);
-        console.log(`[OTP Debug] SMS result:`, result);
-      }
-    }
+    // Send OTP via WhatsApp only
+    const result = await sendWhatsAppOTP(cleanPhone, otp);
+    console.log(`[OTP Debug] WhatsApp result:`, result);
 
     if (!result.success) {
       console.error("Failed to send OTP:", result.message);
