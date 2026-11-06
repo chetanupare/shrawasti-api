@@ -81,19 +81,28 @@ export async function POST(request: Request) {
 
     console.log(`[OTP Debug] Generated OTP for ${cleanPhone}`);
 
-    // Try WhatsApp first
-    let result = await sendWhatsAppOTP(cleanPhone, otp);
-    console.log(`[OTP Debug] WhatsApp result:`, result);
+    // Send OTP via requested channel
+    let result: { success: boolean; message: string };
 
-    // Fallback to SMS if WhatsApp fails
-    if (!result.success) {
-      console.log("WhatsApp failed, falling back to SMS:", result.message);
+    if (channel === "sms") {
+      // Direct SMS request
       result = await sendSMOTP(cleanPhone, otp);
       console.log(`[OTP Debug] SMS result:`, result);
+    } else {
+      // Default to WhatsApp with SMS fallback
+      result = await sendWhatsAppOTP(cleanPhone, otp);
+      console.log(`[OTP Debug] WhatsApp result:`, result);
+
+      // Fallback to SMS if WhatsApp fails
+      if (!result.success) {
+        console.log("WhatsApp failed, falling back to SMS:", result.message);
+        result = await sendSMOTP(cleanPhone, otp);
+        console.log(`[OTP Debug] SMS result:`, result);
+      }
     }
 
     if (!result.success) {
-      console.error("Failed to send OTP via both channels:", result.message);
+      console.error("Failed to send OTP:", result.message);
       return NextResponse.json(
         {
           error: "Failed to send OTP. Please check your Fast2SMS configuration or try again later.",
@@ -105,7 +114,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "OTP sent successfully",
+      message: result.message,
     });
   } catch (error: any) {
     console.error("OTP send error:", error);

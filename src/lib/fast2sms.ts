@@ -66,13 +66,15 @@ export async function verifyOTP(phone: string, otp: string): Promise<boolean> {
 // Fast2SMS WhatsApp API - using template-based messaging
 export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise<{ success: boolean; message: string }> {
   try {
-    // Format phone number - ensure 10-digit format
+    // Format phone number to E.164 format (+91XXXXXXXXXX)
     let formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
-    if (formattedPhone.length === 10 && !formattedPhone.startsWith("91")) {
-      // Keep as 10-digit, Fast2SMS handles it
+    if (formattedPhone.length === 10) {
+      formattedPhone = "91" + formattedPhone;
     }
+    formattedPhone = "+" + formattedPhone;
 
-    const url = "https://www.fast2sms.com/dev/whatsapp";
+    // Use Fast2SMS v2 WhatsApp Business API endpoint
+    const url = "https://www.fast2sms.com/dev/v2/whatsapp";
 
     const response = await fetch(url, {
       method: "POST",
@@ -81,22 +83,33 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        route: "whatsapp",
-        message_id: FAST2SMS_CONFIG.MESSAGE_ID,
-        template_id: FAST2SMS_CONFIG.TEMPLATE_ID,
-        numbers: [formattedPhone],
-        variables: {
-          otp: otp
+        mobile_number: formattedPhone,
+        message: {
+          template_id: FAST2SMS_CONFIG.TEMPLATE_ID,
+          variables: {
+            otp: otp
+          }
         }
       }),
     });
 
     const result = await response.json();
-    console.log("Fast2SMS WhatsApp response:", result);
-    
+    console.log("Fast2SMS WhatsApp response:", JSON.stringify(result, null, 2));
+
+    // Check for successful response
+    // Fast2SMS v2 returns { success: { message_id: "..." } } or { error: "..." }
+    if (result.success && result.success.message_id) {
+      return {
+        success: true,
+        message: "OTP sent via WhatsApp",
+      };
+    }
+
+    // Handle error responses
+    const errorMsg = result.error || result.message || "Failed to send WhatsApp OTP";
     return {
-      success: result.return === true,
-      message: result.message ? (Array.isArray(result.message) ? result.message[0] : result.message) : (result.return ? "OTP sent via WhatsApp" : "Failed to send WhatsApp OTP"),
+      success: false,
+      message: errorMsg,
     };
   } catch (error: any) {
     console.error("Fast2SMS WhatsApp error:", error);
