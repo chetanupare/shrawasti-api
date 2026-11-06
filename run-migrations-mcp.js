@@ -7,9 +7,6 @@
  * - DATABASE_URL environment variable pointing to Supabase connection pool
  *
  * Get connection string from: Supabase Dashboard → Settings → Database → Connection Pooling
- *
- * IMPORTANT: For Vercel deployments, ensure SUPABASE_SERVICE_ROLE_KEY is set,
- * and the migrations will be run using the service role which bypasses RLS.
  */
 
 require('dotenv').config();
@@ -30,7 +27,7 @@ To run migrations:
    - Supabase Dashboard → Settings → Database → Connection Pooling
 
 2. Run:
-   export DATABASE_URL="your_connection_string_here"
+   export DATABASE_URL="postgresql://postgres.kwxjjqvpzxlbivptaath:your_password@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
    node run-migrations-mcp.js
 `);
   process.exit(1);
@@ -79,7 +76,8 @@ async function runMigrations() {
         } catch (e) {
           if (!e.message.includes('already exists') &&
               !e.message.includes('duplicate') &&
-              !e.message.includes('duplicate key')) {
+              !e.message.includes('duplicate key') &&
+              !e.message.includes('duplicate key value')) {
             console.error(`  Error: ${e.message}`);
           }
         }
@@ -93,7 +91,7 @@ async function runMigrations() {
 
     for (const table of tables) {
       try {
-        const res = await client.query(`SELECT to_regclass('public.${table}') as exists`);
+        const res = await client.query("SELECT to_regclass('public." + table + "') as exists");
         console.log(`  ${res.rows[0].exists ? '✓' : '✗'} ${table}`);
       } catch (e) {
         console.log(`  ✗ ${table} - ${e.message}`);
