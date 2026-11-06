@@ -7,7 +7,9 @@
  * - DATABASE_URL environment variable pointing to Supabase connection pool
  *
  * Get connection string from: Supabase Dashboard → Settings → Database → Connection Pooling
- * Ensure your SUPABASE_SERVICE_ROLE_KEY is set in Vercel environment variables
+ *
+ * IMPORTANT: For Vercel deployments, ensure SUPABASE_SERVICE_ROLE_KEY is set,
+ * and the migrations will be run using the service role which bypasses RLS.
  */
 
 require('dotenv').config();
@@ -28,7 +30,7 @@ To run migrations:
    - Supabase Dashboard → Settings → Database → Connection Pooling
 
 2. Run:
-   export DATABASE_URL="postgresql://postgres.<project-ref>:your_password@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+   export DATABASE_URL="your_connection_string_here"
    node run-migrations-mcp.js
 `);
   process.exit(1);

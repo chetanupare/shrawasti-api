@@ -1,8 +1,15 @@
 const { Client } = require('pg');
 
 async function migrate() {
+  const databaseUrl = process.env.DATABASE_URL;
+
+  if (!databaseUrl) {
+    console.error('ERROR: DATABASE_URL environment variable is not set');
+    process.exit(1);
+  }
+
   const client = new Client({
-    connectionString: 'postgresql://postgres.kwxjjqvpzxlbivptaath:znuWVBq6szTllDuV@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres',
+    connectionString: databaseUrl,
     ssl: { rejectUnauthorized: false }
   });
 
