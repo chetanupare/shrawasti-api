@@ -21,12 +21,12 @@
     "next": "16.3.6",
     "pg": "^8.23.1",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "typescript": "^5"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/pg": "^8.15.4",
-    "@types/react": "^19",
-    "typescript": "^5"
+    "@types/react": "^19"
   }
 }
