@@ -4,11 +4,11 @@ import { supabaseAdmin } from "./supabase";
 // Configuration - read from environment
 export const FAST2SMS_CONFIG = {
   API_KEY: process.env.FAST2SMS_API_KEY || "",
-  WABA_ID: process.env.FAST2SMS_WABA_ID || "1593792026096959",
-  PHONE_NUMBER_ID: process.env.FAST2SMS_PHONE_NUMBER_ID || "1341820212357676",
-  TEMPLATE_ID: process.env.FAST2SMS_TEMPLATE_ID || "2228535738070252",
-  MESSAGE_ID: process.env.FAST2SMS_MESSAGE_ID || "41414",
-  SENDER_NUMBER: process.env.FAST2SMS_SENDER_NUMBER || "+919168143290",
+  WABA_ID: process.env.FAST2SMS_WABA_ID || "",
+  PHONE_NUMBER_ID: process.env.FAST2SMS_PHONE_NUMBER_ID || "",
+  TEMPLATE_ID: process.env.FAST2SMS_TEMPLATE_ID || "",
+  MESSAGE_ID: process.env.FAST2SMS_MESSAGE_ID || "",
+  SENDER_NUMBER: process.env.FAST2SMS_SENDER_NUMBER || "",
 };
 
 // Generate 6-digit OTP
@@ -77,6 +77,17 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
       }
     }
 
+    // Debug: Log config being used (redact API key)
+    console.log('Fast2SMS Config check:', {
+      hasApiKey: !!FAST2SMS_CONFIG.API_KEY,
+      apiKeyPrefix: FAST2SMS_CONFIG.API_KEY?.slice(0, 10),
+      phoneNumberId: FAST2SMS_CONFIG.PHONE_NUMBER_ID,
+      messageId: FAST2SMS_CONFIG.MESSAGE_ID,
+      templateId: FAST2SMS_CONFIG.TEMPLATE_ID,
+      senderNumber: FAST2SMS_CONFIG.SENDER_NUMBER,
+      wabaId: FAST2SMS_CONFIG.WABA_ID,
+    });
+
     // Use Fast2SMS WhatsApp Business API endpoint (GET request)
     const url = new URL('https://www.fast2sms.com/dev/whatsapp');
 
@@ -90,6 +101,8 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
     // Pass OTP as template variable for {{1}} placeholder
     url.searchParams.append('variables_values', otp);
 
+    console.log('Fast2SMS Request URL:', url.toString().replace(FAST2SMS_CONFIG.API_KEY || '', '[REDACTED]'));
+
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
@@ -100,10 +113,18 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
 
     const result = await response.json();
     console.log('Fast2SMS WhatsApp response:', JSON.stringify(result, null, 2));
+    console.log('Fast2SMS Response status:', response.status, response.statusText);
 
     // Check for successful response
-    // Fast2SMS returns { status: true, message: "Message sent successfully" }
-    if (result.status === true) {
+    // Fast2SMS API can return:
+    // - { status: true, message: "Message sent successfully" }
+    // - { message: "Success", ... } with a 200 status
+    // - { return_val: <message_id>, ... } for success
+    const isSuccess = result.status === true ||
+                       result.message === 'Success' ||
+                       (response.ok && (result.return_val || result.message_id || result.message));
+
+    if (isSuccess) {
       return {
         success: true,
         message: 'OTP sent via WhatsApp',
@@ -112,8 +133,8 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
 
     // Handle error responses
     // Error codes: 413=API disabled, 424=invalid template, 425=template not approved
-    const errorMsg = result.message || 'Failed to send WhatsApp OTP';
-    const errorCode = (result as any).error_code;
+    const errorMsg = result.message || result.error || 'Failed to send WhatsApp OTP';
+    const errorCode = (result as any).error_code || (result as any).code;
 
     // Provide specific guidance based on error code
     if (errorCode === 413) {
