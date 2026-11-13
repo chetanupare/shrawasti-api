@@ -112,8 +112,10 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
     console.log('Fast2SMS WhatsApp response:', JSON.stringify(result, null, 2));
 
     // Check for successful response
-    // Fast2SMS returns { status: true, message: "Message sent successfully" }
-    if (result.status === true) {
+    // Fast2SMS returns { return: true, message: ["Message sent successfully"] }
+    // or { status: true, message: "Message sent successfully" }
+    const isSuccess = result.return === true || result.status === true;
+    if (isSuccess) {
       return {
         success: true,
         message: 'OTP sent via WhatsApp',
@@ -122,7 +124,7 @@ export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise
 
     // Handle error responses
     // Error codes: 413=API disabled, 424=invalid template, 425=template not approved
-    const errorMsg = result.message || 'Failed to send WhatsApp OTP';
+    const errorMsg = Array.isArray(result.message) ? result.message.join(', ') : (result.message || 'Failed to send WhatsApp OTP');
     const errorCode = (result as any).error_code;
 
     // Provide specific guidance based on error code
