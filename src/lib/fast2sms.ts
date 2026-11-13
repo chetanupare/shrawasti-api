@@ -66,6 +66,16 @@ export async function verifyOTP(phone: string, otp: string): Promise<boolean> {
 // Fast2SMS WhatsApp API - using template-based messaging
 export async function sendWhatsAppOTP(phoneNumber: string, otp: string): Promise<{ success: boolean; message: string }> {
   try {
+    // DEBUG: Log config values (masked for security)
+    console.log('Fast2SMS Config (masked):', {
+      API_KEY: FAST2SMS_CONFIG.API_KEY ? `${FAST2SMS_CONFIG.API_KEY.slice(0, 4)}...${FAST2SMS_CONFIG.API_KEY.slice(-4)}` : 'NOT SET',
+      WABA_ID: FAST2SMS_CONFIG.WABA_ID,
+      PHONE_NUMBER_ID: FAST2SMS_CONFIG.PHONE_NUMBER_ID,
+      TEMPLATE_ID: FAST2SMS_CONFIG.TEMPLATE_ID,
+      MESSAGE_ID: FAST2SMS_CONFIG.MESSAGE_ID,
+      SENDER_NUMBER: FAST2SMS_CONFIG.SENDER_NUMBER,
+    });
+
     // Format phone number - 10-digit Indian number without +91 prefix
     let formattedPhone = phoneNumber.replace(/^\+91/, '').replace(/\D/g, '');
 
