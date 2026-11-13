@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { verifyOTP } from "@/lib/fast2sms";
 import { supabaseAdmin } from "@/lib/supabase";
 import jwt from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
 
-const JWT_SECRET = process.env.JWT_SECRET || "shrawasti-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error("JWT_SECRET environment variable is not set!");
+}
 
 interface UserPayload {
   userId: string;
@@ -12,6 +16,13 @@ interface UserPayload {
   role: string;
   iat: number;
   exp: number;
+}
+
+function getJwtSecret(): string {
+  if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+  return JWT_SECRET;
 }
 
 export async function POST(request: Request) {
@@ -44,22 +55,32 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get or create user
-    let user = null;
-    let isNewUser = false;
-
-    // Try to find user by phone in Supabase
-    const { data: existingUser } = await supabaseAdmin
+    // Get or create user in Supabase
+    // First, check if user profile exists in public.users table
+    const { data: existingProfile, error: profileError } = await supabaseAdmin
       .from("users")
       .select("*")
       .eq("phone", cleanPhone)
       .maybeSingle();
 
-    if (existingUser) {
-      user = existingUser;
+    let user: any;
+    let isNewUser = false;
+
+    if (existingProfile) {
+      // User profile exists, update it
+      user = existingProfile;
+      const { error: updateError } = await supabaseAdmin
+        .from("users")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("phone", cleanPhone);
+
+      if (updateError) {
+        console.error("Error updating user profile:", updateError);
+      }
     } else {
-      // Create new user
-      const uuid = crypto.randomUUID();
+      // Create new user profile
+      // Generate a proper UUID v4
+      const uuid = uuidv4();
       const { data: newUser, error } = await supabaseAdmin
         .from("users")
         .insert({
@@ -68,6 +89,7 @@ export async function POST(request: Request) {
           name: "New User",
           email: null,
           role: "customer",
+          profile_image: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -77,7 +99,7 @@ export async function POST(request: Request) {
       if (error) {
         console.error("Error creating user:", error);
         return NextResponse.json(
-          { error: "Failed to create user account" },
+          { error: `Failed to create user account: ${error.message}` },
           { status: 500 }
         );
       }
@@ -92,7 +114,7 @@ export async function POST(request: Request) {
         phone: user.phone,
         role: user.role || "customer",
       } as UserPayload,
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: "30d" }
     );
 
@@ -106,6 +128,7 @@ export async function POST(request: Request) {
         name: user.name,
         email: user.email,
         role: user.role,
+        profileImage: user.profile_image,
       },
     });
   } catch (error: any) {

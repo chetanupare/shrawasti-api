@@ -2,6 +2,19 @@ import { NextResponse } from "next/server";
 import { generateOTP, storeOTP, sendWhatsAppOTP } from "@/lib/fast2sms";
 import { supabaseAdmin } from "@/lib/supabase";
 
+// Handle OPTIONS preflight requests
+export async function OPTIONS(request: Request) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Allow-Origin': 'http://localhost:3000',
+      'Access-Control-Allow-Methods': 'GET,DELETE,PATCH,POST,PUT,OPTIONS',
+      'Access-Control-Allow-Headers': 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization',
+    },
+  });
+}
+
 // Rate limiting - use Supabase for persistence across serverless instances
 async function isRateLimited(phone: string): Promise<boolean> {
   const now = new Date();
@@ -13,14 +26,8 @@ async function isRateLimited(phone: string): Promise<boolean> {
     .eq("phone", phone)
     .single();
 
-  if (error) {
-    // Table might not exist, allow the attempt
-    return false;
-  }
-
-  const lastAttempt = new Date(data.last_attempt);
-  if (lastAttempt < oneMinuteAgo) {
-    // Reset count
+  if (error || !data) {
+    // First attempt or table doesn't exist - create record
     await supabaseAdmin
       .from("otp_rate_limits")
       .upsert({
@@ -31,10 +38,25 @@ async function isRateLimited(phone: string): Promise<boolean> {
     return false;
   }
 
+  const lastAttempt = new Date(data.last_attempt);
+  if (lastAttempt < oneMinuteAgo) {
+    // Reset count - expired window
+    await supabaseAdmin
+      .from("otp_rate_limits")
+      .update({
+        phone,
+        count: 1,
+        last_attempt: now.toISOString(),
+      });
+    return false;
+  }
+
+  // Check if rate limited before this attempt
   if (data.count >= 3) {
     return true;
   }
 
+  // Increment count for this attempt
   await supabaseAdmin
     .from("otp_rate_limits")
     .update({
