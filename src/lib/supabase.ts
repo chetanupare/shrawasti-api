@@ -26,6 +26,18 @@ const isValidServiceKey =
   !supabaseServiceRoleKey.includes("your_") &&
   supabaseServiceRoleKey.trim().length > 20;
 
+if (!isValidServiceKey) {
+  const env = process.env.NODE_ENV;
+  if (env === 'production') {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required in production but not configured properly.");
+  }
+  console.warn(
+    "SUPABASE_SERVICE_ROLE_KEY is not configured or is a placeholder. " +
+    "Admin operations (OTP storage, user creation, etc.) will fail. " +
+    "Set SUPABASE_SERVICE_ROLE_KEY in environment variables."
+  );
+}
+
 // Admin client for backend operations
 export const supabaseAdmin = isValidServiceKey
   ? createClient(targetUrl, supabaseServiceRoleKey, {

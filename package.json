@@ -13,18 +13,21 @@
     "@emotion/styled": "^11.14.1",
     "@supabase/supabase-js": "^2.117.2",
     "@types/jsonwebtoken": "^9.0.10",
+    "axios": "^1.21.0",
     "expo-server-sdk": "^7.2.0",
     "framer-motion": "^13.5.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.49.0",
     "next": "16.3.6",
-    "pg": "^8.23.1",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "uuid": "^14.0.3"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
+    "@types/uuid": "^10.0.0",
+    "pg": "^8.23.1",
     "typescript": "^5"
   }
 }

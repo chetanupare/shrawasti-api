@@ -55,6 +55,39 @@ export async function POST() {
     const { data: providers, error: pErr } = await supabaseAdmin.from("providers").upsert(initialProviders, { onConflict: "phone" }).select();
     results.providers = pErr ? pErr.message : providers?.length;
 
+    // 5. Seed Coupons
+    const initialCoupons = [
+      { code: "WELCOME50", description: "50% off first booking", discount_type: "percentage", discount_amount: 50, min_order_value: 0, usage_limit: 1 },
+      { code: "WELCOME100", description: "Flat ₹100 off on first booking", discount_type: "fixed", discount_amount: 100, min_order_value: 299, usage_limit: 2 },
+      { code: "SAVE200", description: "₹200 off on bookings above ₹500", discount_type: "fixed", discount_amount: 200, min_order_value: 500, usage_limit: 3 },
+      { code: "FRIEND15", description: "15% off for friend referrals", discount_type: "percentage", discount_amount: 15, min_order_value: 0, usage_limit: 1 },
+    ];
+    const { data: coupons, error: cErr } = await supabaseAdmin.from("coupons").upsert(initialCoupons, { onConflict: "code" }).select();
+    results.coupons = cErr ? cErr.message : coupons?.length;
+
+    // 6. Create default admin user (if not exists)
+    const { data: adminUser, error: aErr } = await supabaseAdmin.from("users")
+      .select("id")
+      .eq("role", "admin")
+      .maybeSingle();
+    
+    if (!adminUser) {
+      const { data: newUser, error: uErr } = await supabaseAdmin.from("users")
+        .insert({
+          id: "admin-placeholder-id",
+          name: "Admin User",
+          email: "admin@shrawasti.com",
+          phone: null,
+          role: "admin",
+          profile_image: null
+        })
+        .select()
+        .single();
+      results.adminUser = uErr ? uErr.message : "Created";
+    } else {
+      results.adminUser = "Already exists";
+    }
+
     return NextResponse.json({
       success: true,
       message: "Database seeded successfully with initial master records!",

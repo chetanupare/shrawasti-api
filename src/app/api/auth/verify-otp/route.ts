@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyOTP } from "@/lib/fast2sms";
 import { supabaseAdmin } from "@/lib/supabase";
 import jwt from "jsonwebtoken";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     } else {
       // Create new user profile
       // Generate a proper UUID v4
-      const uuid = uuidv4();
+      const uuid = randomUUID();
       const { data: newUser, error } = await supabaseAdmin
         .from("users")
         .insert({

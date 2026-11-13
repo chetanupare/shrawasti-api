@@ -2,8 +2,13 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { queryProviderByPhoneOrId } from "@/lib/db";
+import jwt from "jsonwebtoken";
 
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "shrawasti-da98e";
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+if (!FIREBASE_PROJECT_ID) {
+  console.error("FIREBASE_PROJECT_ID environment variable is not set!");
+}
 
 let firebaseCerts: { certs: Record<string, string>; expires: number } | null = null;
 
@@ -96,15 +101,50 @@ export async function ensureUserExists(user: any) {
 export async function requireAuthenticatedUser(request: Request) {
   const authHeader = request.headers.get("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return { error: "Missing authentication", status: 401, user: null };
+    return { error: "Missing or invalid authorization header", status: 401, user: null };
   }
   const token = authHeader.split(" ")[1];
 
+  // First, try to parse JWT payload to determine token type
+  const payload = parseJwtPayload(token);
+
+  // Check if this is our custom JWT format (has userId field)
+  if (payload?.userId && payload.role) {
+    // Verify the JWT signature using JWT_SECRET
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return { error: "JWT_SECRET is not configured on the server", status: 500, user: null };
+    }
+    try {
+      const decoded = jwt.verify(token, jwtSecret) as { userId: string; phone: string; role: string; iat: number; exp: number };
+
+      if (decoded.userId && decoded.role) {
+        return {
+          error: null,
+          status: 200,
+          user: {
+            id: decoded.userId,
+            phone: decoded.phone || null,
+            email: null,
+            role: decoded.role,
+            user_metadata: {
+              phone: decoded.phone || null,
+              name: null,
+            },
+          } as any,
+        };
+      }
+    } catch (err: any) {
+      return { error: err.message || "Invalid or expired token", status: 401, user: null };
+    }
+  }
+
+  // Try Firebase/Supabase Auth token
   try {
-    const payload = await verifyFirebaseIdToken(token);
-    if (payload) {
-      const phone = payload.phone_number || payload.phone || null;
-      const rawUserId = payload.user_id || payload.sub || "";
+    const firebasePayload = await verifyFirebaseIdToken(token);
+    if (firebasePayload) {
+      const phone = firebasePayload.phone_number || firebasePayload.phone || null;
+      const rawUserId = firebasePayload.user_id || firebasePayload.sub || "";
       const uuid = getFirebaseUuid(rawUserId);
       return {
         error: null,
@@ -113,17 +153,15 @@ export async function requireAuthenticatedUser(request: Request) {
           id: uuid || rawUserId,
           raw_uid: rawUserId,
           phone,
-          email: payload.email || null,
+          email: firebasePayload.email || null,
           user_metadata: {
             phone,
-            name: payload.name || null,
+            name: firebasePayload.name || null,
           },
         } as any,
       };
     }
   } catch {}
-
-  const payload = parseJwtPayload(token);
 
   // 2. Try Supabase Auth token (only if sub looks like a valid UUID)
   if (payload?.sub && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.sub)) {
