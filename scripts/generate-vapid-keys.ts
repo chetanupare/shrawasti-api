@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 
-import webPush from 'web-push';
+import * as webPush from 'web-push';
 
 const vapidKeys = webPush.generateVAPIDKeys();
 
