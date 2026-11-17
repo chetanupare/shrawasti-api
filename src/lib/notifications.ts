@@ -1,5 +1,5 @@
 import { Expo } from 'expo-server-sdk';
-import webPush from 'web-push';
+import * as webPush from 'web-push';
 import { supabaseAdmin } from './supabase';
 
 const expo = new Expo();
