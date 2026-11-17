@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
 import { generateOTP, storeOTP, sendWhatsAppOTP } from "@/lib/fast2sms";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isTestPhone } from "@/lib/testLogin";
+import { corsHeaders } from "@/lib/cors";
 
-// Handle OPTIONS preflight requests
 export async function OPTIONS(request: Request) {
   return new NextResponse(null, {
     status: 204,
-    headers: {
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Allow-Origin': 'http://localhost:3000',
-      'Access-Control-Allow-Methods': 'GET,DELETE,PATCH,POST,PUT,OPTIONS',
-      'Access-Control-Allow-Headers': 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization',
-    },
+    headers: corsHeaders(request.headers.get("origin")),
   });
 }
 
@@ -87,6 +83,13 @@ export async function POST(request: Request) {
         { error: "Invalid phone number. Please enter a valid 10-digit Indian number." },
         { status: 400 }
       );
+    }
+
+    if (isTestPhone(cleanPhone)) {
+      return NextResponse.json({
+        success: true,
+        message: "OTP sent",
+      });
     }
 
     // Rate limiting

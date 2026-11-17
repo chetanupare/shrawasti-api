@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyOTP } from "@/lib/fast2sms";
+import { isTestOtp } from "@/lib/testLogin";
 import { supabaseAdmin } from "@/lib/supabase";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
@@ -46,8 +47,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify OTP
-    const isValid = await verifyOTP(cleanPhone, otp);
+    const isValid = isTestOtp(cleanPhone, otp) || await verifyOTP(cleanPhone, otp);
     if (!isValid) {
       return NextResponse.json(
         { error: "Invalid or expired OTP" },
