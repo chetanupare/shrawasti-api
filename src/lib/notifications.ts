@@ -1,20 +1,86 @@
 import { Expo } from 'expo-server-sdk';
+import webPush from 'web-push';
 import { supabaseAdmin } from './supabase';
 
 const expo = new Expo();
 
-type NotificationEvent = 'BOOKING_CONFIRMED' | 'TECHNICIAN_ASSIGNED' | 'TECHNICIAN_ARRIVED' | 'SERVICE_STARTED' | 'SERVICE_COMPLETED' | 'BOOKING_CANCELLED' | 'NEW_JOB_ASSIGNED';
+// Initialize Web Push with VAPID keys
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:notifications@shrawasti.com';
+
+if (vapidPublicKey && vapidPrivateKey) {
+  webPush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+}
+
+type NotificationType = 'general' | 'system' | 'order' | 'payment' | 'security' | 'announcement';
+type NotificationEvent = 'BOOKING_CONFIRMED' | 'TECHNICIAN_ASSIGNED' | 'TECHNICIAN_ARRIVED' | 'SERVICE_STARTED' | 'SERVICE_COMPLETED' | 'BOOKING_CANCELLED' | 'NEW_JOB_ASSIGNED' | 'PAYMENT_RECEIVED' | 'PROMOTIONAL' | 'SYSTEM_ALERT';
 
 interface SendNotificationParams {
   userId: string;
   title: string;
   body: string;
   data?: Record<string, any>;
+  type?: NotificationType;
+  actionUrl?: string;
 }
 
-export async function sendPushNotification({ userId, title, body, data }: SendNotificationParams) {
+interface CreateNotificationParams {
+  userId: string;
+  title: string;
+  message: string;
+  type?: NotificationType;
+  actionUrl?: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Create an in-app notification in the database
+ */
+export async function createNotification({
+  userId,
+  title,
+  message,
+  type = 'general',
+  actionUrl,
+  metadata = {},
+}: CreateNotificationParams) {
   try {
-    // 1. Get user's device tokens
+    const { data, error } = await supabaseAdmin
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        title,
+        message,
+        type,
+        action_url: actionUrl,
+        metadata,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating notification:', error);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Error in createNotification:', err);
+    return null;
+  }
+}
+
+/**
+ * Send Expo push notification (for mobile app)
+ */
+export async function sendExpoPushNotification({
+  userId,
+  title,
+  body,
+  data,
+}: SendNotificationParams) {
+  try {
     const { data: tokens, error } = await supabaseAdmin
       .from('device_tokens')
       .select('token')
@@ -22,7 +88,7 @@ export async function sendPushNotification({ userId, title, body, data }: SendNo
       .eq('is_active', true);
 
     if (error || !tokens || tokens.length === 0) {
-      return; // No tokens found, just return silently
+      return;
     }
 
     const messages = [];
@@ -42,24 +108,350 @@ export async function sendPushNotification({ userId, title, body, data }: SendNo
 
     if (messages.length === 0) return;
 
-    // 2. Send messages via Expo
     const chunks = expo.chunkPushNotifications(messages);
     for (const chunk of chunks) {
       try {
         await expo.sendPushNotificationsAsync(chunk);
       } catch (error) {
-        console.error('Error sending push notification chunk:', error);
+        console.error('Error sending Expo push notification chunk:', error);
       }
     }
   } catch (err) {
-    console.error('Error in sendPushNotification utility:', err);
+    console.error('Error in sendExpoPushNotification:', err);
   }
 }
 
-// Pre-defined event templates
-export async function notifyBookingEvent(userId: string, event: NotificationEvent, bookingId: string, additionalInfo?: any) {
+/**
+ * Send Web Push notification (for PWA/desktop)
+ */
+export async function sendWebPushNotification({
+  userId,
+  title,
+  body,
+  data,
+  actionUrl,
+}: SendNotificationParams) {
+  if (!vapidPublicKey || !vapidPrivateKey) {
+    console.warn('VAPID keys not configured, skipping Web Push');
+    return;
+  }
+
+  try {
+    const { data: subscriptions, error } = await supabaseAdmin
+      .from('push_subscriptions')
+      .select('endpoint, p256dh, auth')
+      .eq('user_id', userId);
+
+    if (error || !subscriptions || subscriptions.length === 0) {
+      return;
+    }
+
+    const payload = JSON.stringify({
+      title,
+      body,
+      url: actionUrl || '/notifications',
+      data: data || {},
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+    });
+
+    const sendPromises = subscriptions.map(async (sub) => {
+      const pushSubscription = {
+        endpoint: sub.endpoint,
+        keys: {
+          p256dh: sub.p256dh,
+          auth: sub.auth,
+        },
+      };
+
+      try {
+        await webPush.sendNotification(pushSubscription, payload);
+      } catch (err: any) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await removeExpiredSubscription(sub.endpoint);
+        } else {
+          console.error('Web Push send error:', err);
+        }
+      }
+    });
+
+    await Promise.allSettled(sendPromises);
+  } catch (err) {
+    console.error('Error in sendWebPushNotification:', err);
+  }
+}
+
+/**
+ * Send both in-app notification and push notifications
+ */
+export async function sendToUser(params: SendNotificationParams & { type?: NotificationType }) {
+  const {
+    userId,
+    title,
+    body,
+    data,
+    type = 'general',
+    actionUrl,
+  } = params;
+
+  await Promise.allSettled([
+    createNotification({ userId, title, message: body, type, actionUrl, metadata: data }),
+    sendExpoPushNotification({ userId, title, body, data }),
+    sendWebPushNotification({ userId, title, body, data, actionUrl }),
+  ]);
+}
+
+/**
+ * Send notification to multiple users
+ */
+export async function sendToMultipleUsers(
+  userIds: string[],
+  params: Omit<SendNotificationParams, 'userId'>
+) {
+  await Promise.allSettled(
+    userIds.map((userId) => sendToUser({ ...params, userId }))
+  );
+}
+
+/**
+ * Mark a notification as read
+ */
+export async function markAsRead(notificationId: string, userId: string) {
+  const { error } = await supabaseAdmin
+    .from('notifications')
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .eq('id', notificationId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error marking notification as read:', error);
+  }
+  return !error;
+}
+
+/**
+ * Mark all notifications as read for a user
+ */
+export async function markAllAsRead(userId: string) {
+  const { error } = await supabaseAdmin
+    .from('notifications')
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('is_read', false);
+
+  if (error) {
+    console.error('Error marking all notifications as read:', error);
+  }
+  return !error;
+}
+
+/**
+ * Get notifications for a user with pagination
+ */
+export async function getNotifications(
+  userId: string,
+  options: { limit?: number; offset?: number; unreadOnly?: boolean } = {}
+) {
+  const { limit = 20, offset = 0, unreadOnly = false } = options;
+
+  let query = supabaseAdmin
+    .from('notifications')
+    .select('*', { count: 'exact' })
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (unreadOnly) {
+    query = query.eq('is_read', false);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error('Error fetching notifications:', error);
+    return { notifications: [], total: 0 };
+  }
+
+  return { notifications: data || [], total: count || 0 };
+}
+
+/**
+ * Get unread notification count
+ */
+export async function getUnreadCount(userId: string) {
+  const { count, error } = await supabaseAdmin
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_read', false);
+
+  if (error) {
+    console.error('Error fetching unread count:', error);
+    return 0;
+  }
+
+  return count || 0;
+}
+
+/**
+ * Delete a notification
+ */
+export async function deleteNotification(notificationId: string, userId: string) {
+  const { error } = await supabaseAdmin
+    .from('notifications')
+    .delete()
+    .eq('id', notificationId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error deleting notification:', error);
+  }
+  return !error;
+}
+
+/**
+ * Update push subscription (for PWA)
+ */
+export async function updatePushSubscription(
+  userId: string,
+  subscription: { endpoint: string; p256dh: string; auth: string },
+  deviceInfo?: { deviceName?: string; platform?: string }
+) {
+  const { data, error } = await supabaseAdmin
+    .from('push_subscriptions')
+    .upsert(
+      {
+        user_id: userId,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+        device_name: deviceInfo?.deviceName,
+        platform: deviceInfo?.platform || 'web',
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id, endpoint' }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating push subscription:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Remove expired push subscription
+ */
+export async function removeExpiredSubscription(endpoint: string) {
+  const { error } = await supabaseAdmin
+    .from('push_subscriptions')
+    .delete()
+    .eq('endpoint', endpoint);
+
+  if (error) {
+    console.error('Error removing expired subscription:', error);
+  }
+  return !error;
+}
+
+/**
+ * Get user's push subscriptions
+ */
+export async function getPushSubscriptions(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('push_subscriptions')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching push subscriptions:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Get notification preferences
+ */
+export async function getNotificationPreferences(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('notification_preferences')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching notification preferences:', error);
+    return null;
+  }
+
+  // Return defaults if not found
+  if (!data) {
+    return {
+      push_enabled: true,
+      general_enabled: true,
+      security_enabled: true,
+      marketing_enabled: false,
+      order_enabled: true,
+      payment_enabled: true,
+    };
+  }
+
+  return data;
+}
+
+/**
+ * Update notification preferences
+ */
+export async function updateNotificationPreferences(
+  userId: string,
+  preferences: Partial<{
+    push_enabled: boolean;
+    general_enabled: boolean;
+    security_enabled: boolean;
+    marketing_enabled: boolean;
+    order_enabled: boolean;
+    payment_enabled: boolean;
+  }>
+) {
+  const { data, error } = await supabaseAdmin
+    .from('notification_preferences')
+    .upsert(
+      {
+        user_id: userId,
+        ...preferences,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating notification preferences:', error);
+    return null;
+  }
+
+  return data;
+}
+
+/**
+ * Pre-defined event templates
+ */
+export async function notifyBookingEvent(
+  userId: string,
+  event: NotificationEvent,
+  bookingId: string,
+  additionalInfo?: any
+) {
   let title = '';
   let body = '';
+  let type: NotificationType = 'order';
+  let actionUrl = `/bookings/${bookingId}`;
 
   switch (event) {
     case 'BOOKING_CONFIRMED':
@@ -73,6 +465,7 @@ export async function notifyBookingEvent(userId: string, event: NotificationEven
     case 'NEW_JOB_ASSIGNED':
       title = 'New Job Assigned';
       body = 'You have been assigned a new service booking.';
+      type = 'order';
       break;
     case 'TECHNICIAN_ARRIVED':
       title = 'Technician Arrived';
@@ -89,14 +482,39 @@ export async function notifyBookingEvent(userId: string, event: NotificationEven
     case 'BOOKING_CANCELLED':
       title = 'Booking Cancelled';
       body = 'Your booking has been cancelled.';
+      type = 'order';
+      break;
+    case 'PAYMENT_RECEIVED':
+      title = 'Payment Received';
+      body = `Payment of ₹${additionalInfo?.amount || ''} received for your booking.`;
+      type = 'payment';
+      break;
+    case 'PROMOTIONAL':
+      title = additionalInfo?.title || 'Special Offer';
+      body = additionalInfo?.body || 'Check out our latest offers!';
+      type = 'announcement';
+      actionUrl = additionalInfo?.actionUrl || '/offers';
+      break;
+    case 'SYSTEM_ALERT':
+      title = additionalInfo?.title || 'System Alert';
+      body = additionalInfo?.body || 'An important system update is available.';
+      type = 'system';
       break;
   }
 
-  // Fire and forget - don't await this so it doesn't block API responses
-  sendPushNotification({
+  await sendToUser({
     userId,
     title,
     body,
-    data: { type: event, bookingId },
-  }).catch(console.error);
+    data: { type: event, bookingId, ...additionalInfo },
+    type,
+    actionUrl,
+  });
+}
+
+/**
+ * Get VAPID public key for frontend subscription
+ */
+export function getVapidPublicKey(): string | null {
+  return vapidPublicKey || null;
 }

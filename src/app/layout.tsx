@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Provider } from "./provider";
 
 export const metadata: Metadata = {
-  title: "Shrawasti Admin Portal & API | Chakra UI Enterprise Edition",
-  description: "Management portal and backend services for Shrawasti Mobile App powered by Chakra UI",
+  title: "Shrawasti desk",
+  description: "Manage Shrawasti bookings, crew, and catalog.",
 };
 
 export default function RootLayout({

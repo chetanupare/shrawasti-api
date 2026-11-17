@@ -105,6 +105,7 @@ export default function AdminDashboard() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [seedConfirm, setSeedConfirm] = useState(false);
   const router = useRouter();
   
   // Real-time Search & Filter inputs
@@ -798,124 +799,134 @@ export default function AdminDashboard() {
     return matchesQuery && matchesCategory && matchesBody;
   });
 
-  const sidebarNavItems = [
-    { id: "overview", label: "Dashboard Overview", icon: LayoutDashboard },
-    { id: "bookings", label: "Bookings", icon: CalendarCheck, count: bookings.length },
-    { id: "users", label: "Registered Users", icon: Users, count: users.length },
-    { id: "providers", label: "Service Providers", icon: UserCheck, count: providers.length },
-    { id: "services", label: "Services Catalog", icon: Wrench, count: services.length },
-    { id: "slots", label: "Time Slots", icon: Clock, count: slots.length },
-    { id: "vehicles", label: "Vehicle Catalog", icon: Car, count: vehicles.length },
-    { id: "coupons", label: "Coupons & Promos", icon: Ticket, count: coupons.length },
-    { id: "subscriptions", label: "CarePass Subscriptions", icon: Sparkles, count: subscriptions.length },
-    { id: "reviews", label: "Customer Reviews", icon: Star, count: reviews.length },
-    { id: "notifications", label: "Broadcast Push", icon: Bell, count: deviceTokens.length },
+  const pageTitles: Record<string, string> = {
+    overview: "Today",
+    bookings: "Bookings",
+    users: "Customers",
+    providers: "Crew",
+    services: "Services",
+    slots: "Arrival windows",
+    vehicles: "Vehicles",
+    coupons: "Coupons",
+    subscriptions: "CarePass",
+    reviews: "Reviews",
+    notifications: "Messages",
+    health: "System",
+    api: "API console",
+  };
+  const searchHint: Record<string, string> = {
+    bookings: "Name, phone, or booking",
+    users: "Name, phone, or email",
+    providers: "Crew name or phone",
+    services: "Service name",
+    slots: "Arrival window",
+    vehicles: "Brand or model",
+  };
+  const navGroups = [
+    {
+      label: "Today",
+      items: [
+        { id: "overview", label: "Today", icon: LayoutDashboard },
+        { id: "bookings", label: "Bookings", icon: CalendarCheck, count: bookings.length },
+      ],
+    },
+    {
+      label: "People",
+      items: [
+        { id: "users", label: "Customers", icon: Users, count: users.length },
+        { id: "providers", label: "Crew", icon: UserCheck, count: providers.length },
+      ],
+    },
+    {
+      label: "Catalog",
+      items: [
+        { id: "services", label: "Services", icon: Wrench, count: services.length },
+        { id: "slots", label: "Windows", icon: Clock, count: slots.length },
+        { id: "vehicles", label: "Vehicles", icon: Car, count: vehicles.length },
+        { id: "coupons", label: "Coupons", icon: Ticket, count: coupons.length },
+        { id: "subscriptions", label: "CarePass", icon: Sparkles, count: subscriptions.length },
+      ],
+    },
+    {
+      label: "Reach",
+      items: [
+        { id: "reviews", label: "Reviews", icon: Star, count: reviews.length },
+        { id: "notifications", label: "Messages", icon: Bell, count: deviceTokens.length },
+      ],
+    },
+    {
+      label: "System",
+      items: [
+        { id: "health", label: "Health", icon: Activity },
+        { id: "api", label: "API console", icon: Terminal },
+      ],
+    },
   ];
 
   const sidebarContent = (
-    <VStack align="stretch" p="2.5" gap="1" flex="1">
-      <Text fontSize="10px" fontWeight="bold" color="#94A3B8" px="2.5" pt="1" pb="1" textTransform="uppercase" letterSpacing="wider">
-        Management Modules
-      </Text>
-
-      {sidebarNavItems.map((item) => {
-        const Icon = item.icon;
-        const isActive = activeTab === item.id;
-        return (
-          <Button
-            key={item.id}
-            onClick={() => {
-              setActiveTab(item.id as any);
-              setIsMobileMenuOpen(false);
-            }}
-            variant="ghost"
-            justifyContent="space-between"
-            w="full"
-            h="36px"
-            px="3"
-            borderRadius="lg"
-            bg={isActive ? "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)" : "transparent"}
-            color={isActive ? "#FFFFFF" : "#E2E8F0"}
-            boxShadow={isActive ? "0 4px 12px rgba(37, 99, 235, 0.4)" : "none"}
-            _hover={{ bg: isActive ? "blue.600" : "rgba(255, 255, 255, 0.08)", color: "#FFFFFF" }}
-            fontWeight={isActive ? "bold" : "medium"}
-            transition="all 0.2s"
-          >
-            <HStack gap="2.5">
-              <Icon size={16} color={isActive ? "#FFFFFF" : "#CBD5E1"} />
-              <Text fontSize="xs">{item.label}</Text>
-            </HStack>
-            {item.count !== undefined && (
-              <Badge
-                borderRadius="full"
-                px="2"
-                py="0"
-                fontSize="10px"
-                bg={isActive ? "whiteAlpha.300" : "rgba(255, 255, 255, 0.15)"}
-                color={isActive ? "#FFFFFF" : "#F8FAFC"}
-              >
-                {item.count}
-              </Badge>
-            )}
-          </Button>
-        );
-      })}
-
-      <Text fontSize="10px" fontWeight="bold" color="#94A3B8" px="2.5" pt="3" pb="1" textTransform="uppercase" letterSpacing="wider">
-        System & Developer
-      </Text>
-
-      {[
-        { id: "health", label: "Database & Health", icon: Activity },
-        { id: "api", label: "API Console", icon: Terminal },
-      ].map((item) => {
-        const Icon = item.icon;
-        const isActive = activeTab === item.id;
-        return (
-          <Button
-            key={item.id}
-            onClick={() => {
-              setActiveTab(item.id as any);
-              setIsMobileMenuOpen(false);
-            }}
-            variant="ghost"
-            justifyContent="flex-start"
-            gap="2.5"
-            w="full"
-            h="36px"
-            px="3"
-            borderRadius="lg"
-            bg={isActive ? "linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)" : "transparent"}
-            color={isActive ? "#FFFFFF" : "#E2E8F0"}
-            boxShadow={isActive ? "0 4px 12px rgba(37, 99, 235, 0.4)" : "none"}
-            _hover={{ bg: isActive ? "blue.600" : "rgba(255, 255, 255, 0.08)", color: "#FFFFFF" }}
-          >
-            <Icon size={16} color={isActive ? "#FFFFFF" : "#CBD5E1"} />
-            <Text fontSize="xs">{item.label}</Text>
-          </Button>
-        );
-      })}
-      
-      <Button
-        mt="auto"
-        mb="4"
-        mx="3"
-        onClick={handleLogout}
-        variant="ghost"
-        justifyContent="flex-start"
-        w="calc(100% - 24px)"
-        h="36px"
-        px="3"
-        borderRadius="lg"
-        color="red.400"
-        _hover={{ bg: "rgba(239, 68, 68, 0.1)", color: "red.300" }}
-      >
-        <HStack>
-          <LogOut size={16} />
-          <Text fontSize="sm">Logout</Text>
-        </HStack>
-      </Button>
-    </VStack>
+    <Flex direction="column" flex="1" minH="0">
+      <Box flex="1" overflowY="auto" px="2.5" py="2">
+        {navGroups.map((group) => (
+          <Box key={group.label} mb="3">
+            <Text fontSize="11px" fontWeight="semibold" color="#8FBC9A" px="2.5" pb="1">
+              {group.label}
+            </Text>
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <Button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id as any);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  variant="ghost"
+                  justifyContent="space-between"
+                  w="full"
+                  h="40px"
+                  px="3"
+                  mb="0.5"
+                  borderRadius="lg"
+                  bg={isActive ? "#1A6B3C" : "transparent"}
+                  color={isActive ? "#FFFFFF" : "#E7F2EA"}
+                  _hover={{ bg: isActive ? "#145A32" : "rgba(255, 255, 255, 0.08)" }}
+                  fontWeight={isActive ? "bold" : "medium"}
+                >
+                  <HStack gap="2.5">
+                    <Icon size={16} color={isActive ? "#FFFFFF" : "#C7E0D0"} />
+                    <Text fontSize="sm">{item.label}</Text>
+                  </HStack>
+                  {"count" in item && item.count !== undefined && (
+                    <Text fontSize="12px" color={isActive ? "#D0E8D8" : "#8FBC9A"}>
+                      {item.count}
+                    </Text>
+                  )}
+                </Button>
+              );
+            })}
+          </Box>
+        ))}
+      </Box>
+      <Box px="2.5" py="3" borderTop="1px solid" borderColor="rgba(255,255,255,0.12)">
+        <Button
+          onClick={handleLogout}
+          variant="ghost"
+          justifyContent="flex-start"
+          w="full"
+          h="40px"
+          px="3"
+          borderRadius="lg"
+          color="#FCA5A5"
+          _hover={{ bg: "rgba(239, 68, 68, 0.12)" }}
+        >
+          <HStack>
+            <LogOut size={16} />
+            <Text fontSize="sm">Sign out</Text>
+          </HStack>
+        </Button>
+      </Box>
+    </Flex>
   );
 
   return (
@@ -945,7 +956,7 @@ export default function AdminDashboard() {
           top="20px"
           right="20px"
           zIndex="9999"
-          bg="blue.600"
+          bg="#1A6B3C"
           color="white"
           px="4"
           py="3"
@@ -965,62 +976,36 @@ export default function AdminDashboard() {
       <Flex flex="1" overflow="hidden">
         {/* Desktop Sidebar */}
         <Box
-          w="230px"
-          bg="#0F172A"
+          w="248px"
+          bg="#10261C"
           borderRight="1px solid"
-          borderColor="rgba(255, 255, 255, 0.12)"
+          borderColor="rgba(255, 255, 255, 0.08)"
           display={{ base: "none", md: "flex" }}
           flexDir="column"
+          h="100vh"
+          position="sticky"
+          top="0"
         >
-          {/* Brand */}
-          <Flex p="3.5" alignItems="center" gap="2.5" borderBottom="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
-            <Flex
-              w="36px"
-              h="36px"
-              borderRadius="lg"
-              bgGradient="linear(to-br, blue.500, purple.600)"
-              alignItems="center"
-              justifyContent="center"
-              boxShadow="0 0 14px rgba(59, 130, 246, 0.4)"
-            >
-              <ShieldCheck size={20} color="#FFF" />
+          <Flex p="4" alignItems="center" gap="2.5" borderBottom="1px solid" borderColor="rgba(255, 255, 255, 0.08)">
+            <Flex w="36px" h="36px" borderRadius="lg" bg="#1A6B3C" alignItems="center" justifyContent="center">
+              <ShieldCheck size={18} color="#FFF" />
             </Flex>
             <Box>
-              <Heading size="xs" color="white" fontWeight="800" letterSpacing="tight">
-                Shrawasti
-              </Heading>
-              <Badge colorScheme="purple" fontSize="9px" variant="solid" px="1.5" py="0" borderRadius="md">
-                Admin Panel
-              </Badge>
+              <Heading size="sm" color="white" fontWeight="800">Shrawasti</Heading>
+              <Text fontSize="12px" color="#8FBC9A">Desk</Text>
             </Box>
           </Flex>
-
           {sidebarContent}
-
-          {/* Database Status footer */}
-          <Box p="3" borderTop="1px solid" borderColor="rgba(255, 255, 255, 0.12)" bg="#090D16">
-            <Flex alignItems="center" gap="2.5">
-              <Box w="7px" h="7px" borderRadius="full" bg="#34D399" boxShadow="0 0 8px #34D399" />
-              <Box>
-                <Text fontSize="11px" fontWeight="bold" color="white">
-                  Supabase DB
-                </Text>
-                <Text fontSize="9px" color="#94A3B8">
-                  Realtime active (5s)
-                </Text>
-              </Box>
-            </Flex>
-          </Box>
         </Box>
 
         {/* Mobile Slide-over Drawer / Menu */}
         {isMobileMenuOpen && (
           <Box position="fixed" inset="0" zIndex="999" bg="blackAlpha.800" backdropFilter="blur(4px)" display={{ base: "block", md: "none" }}>
-            <Box w="280px" h="full" bg="#0F172A" display="flex" flexDir="column" boxShadow="2xl">
+            <Box w="280px" h="full" bg="#10261C" display="flex" flexDir="column" boxShadow="2xl">
               <Flex p="4" justifyContent="space-between" alignItems="center" borderBottom="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
                 <HStack gap="2">
-                  <ShieldCheck size={20} color="#3B82F6" />
-                  <Heading size="xs" color="white">Shrawasti Mobile Menu</Heading>
+                  <ShieldCheck size={20} color="#8FBC9A" />
+                  <Heading size="xs" color="white">Shrawasti</Heading>
                 </HStack>
                 <IconButton size="xs" variant="ghost" color="white" onClick={() => setIsMobileMenuOpen(false)} aria-label="Close menu">
                   <X size={18} />
@@ -1035,7 +1020,7 @@ export default function AdminDashboard() {
         <Flex flex="1" flexDir="column" overflowX="hidden" w="full">
           {/* Top Control Bar */}
           <Flex
-            h="52px"
+            h="60px"
             px={{ base: "3", md: "5" }}
             bg="#0F172A"
             borderBottom="1px solid"
@@ -1056,29 +1041,29 @@ export default function AdminDashboard() {
                 <Menu size={20} />
               </IconButton>
 
-              <Heading size="sm" textTransform="capitalize" color="white" fontSize={{ base: "sm", md: "md" }}>
-                {activeTab.replace("_", " ")}
+              <Heading size="md" color="white" fontSize={{ base: "md", md: "lg" }}>
+                {pageTitles[activeTab] || activeTab}
               </Heading>
 
-              {/* REAL-TIME GLOBAL SEARCH INPUT (HIGH CONTRAST TEXT) */}
+              {searchHint[activeTab] && (
               <Flex
                 alignItems="center"
                 bg="#1E293B"
                 borderRadius="xl"
                 px="3"
-                py="1.5"
+                h="40px"
                 border="1px solid"
                 borderColor="rgba(255, 255, 255, 0.2)"
                 w="full"
-                maxW="340px"
+                maxW="360px"
                 display={{ base: "none", sm: "flex" }}
               >
-                <Search size={15} color="#CBD5E1" style={{ marginRight: "8px" }} />
+                <Search size={16} color="#CBD5E1" style={{ marginRight: "8px" }} />
                 <Input
-                  placeholder="Search bookings, users, providers..."
+                  placeholder={searchHint[activeTab]}
                   value={globalSearch}
                   onChange={(e) => setGlobalSearch(e.target.value)}
-                  fontSize="xs"
+                  fontSize="16px"
                   color="#FFFFFF"
                   _placeholder={{ color: "gray.400" }}
                   bg="transparent"
@@ -1092,45 +1077,31 @@ export default function AdminDashboard() {
                     aria-label="Clear search"
                     onClick={() => setGlobalSearch("")}
                   >
-                    <X size={12} />
+                    <X size={14} />
                   </IconButton>
                 )}
               </Flex>
+              )}
             </HStack>
 
-            <HStack gap="2.5">
-              <Button
-                onClick={() => fetchAllData(true)}
-                size="xs"
-                variant="outline"
-                borderColor="rgba(255, 255, 255, 0.25)"
-                color="#F8FAFC"
-                _hover={{ bg: "whiteAlpha.200", color: "white" }}
-                borderRadius="lg"
-                px="3"
-              >
-                <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} style={{ marginRight: "6px" }} />
-                Sync
-              </Button>
-
-              <Button
-                onClick={handleSeedDatabase}
-                disabled={seeding}
-                size="xs"
-                bgGradient="linear(to-r, emerald.500, teal.600)"
-                color="white"
-                _hover={{ bgGradient: "linear(to-r, emerald.600, teal.700)" }}
-                borderRadius="lg"
-                px="3"
-              >
-                {seeding ? <Spinner size="xs" mr="1" /> : <Database size={12} style={{ marginRight: "6px" }} />}
-                Seed DB
-              </Button>
-            </HStack>
+            <Button
+              onClick={() => fetchAllData(true)}
+              size="sm"
+              variant="outline"
+              borderColor="rgba(255, 255, 255, 0.25)"
+              color="#F8FAFC"
+              _hover={{ bg: "whiteAlpha.200", color: "white" }}
+              borderRadius="lg"
+              px="3"
+              h="40px"
+            >
+              <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} style={{ marginRight: "6px" }} />
+              Refresh
+            </Button>
           </Flex>
 
           {/* Mobile Global Search Bar */}
-          <Box px="4" pt="3" display={{ base: "block", sm: "none" }}>
+          <Box px="4" pt="3" display={{ base: searchHint[activeTab] ? "block" : "none", sm: "none" }}>
             <Flex
               alignItems="center"
               bg="#1E293B"
@@ -1142,10 +1113,10 @@ export default function AdminDashboard() {
             >
               <Search size={15} color="#CBD5E1" style={{ marginRight: "8px" }} />
               <Input
-                placeholder="Search across all records..."
+                placeholder={searchHint[activeTab] || "Search"}
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
-                fontSize="xs"
+                fontSize="16px"
                 color="#FFFFFF"
                 _placeholder={{ color: "gray.400" }}
                 bg="transparent"
@@ -2530,10 +2501,27 @@ export default function AdminDashboard() {
                     </Heading>
 
                     <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
+                      <Heading size="sm" color="white" mb="2">Sample data</Heading>
+                      <Text color="gray.300" fontSize="sm" mb="3">
+                        Adds sample services, arrival windows, vehicles, crew, and coupons. Vehicles can be added again if you run this twice.
+                      </Text>
+                      {seedConfirm ? (
+                        <HStack>
+                          <Button size="sm" bg="#1A6B3C" color="white" loading={seeding} onClick={handleSeedDatabase}>Add sample data</Button>
+                          <Button size="sm" variant="ghost" color="white" onClick={() => setSeedConfirm(false)}>Cancel</Button>
+                        </HStack>
+                      ) : (
+                        <Button size="sm" variant="outline" borderColor="rgba(255,255,255,0.3)" color="white" onClick={() => setSeedConfirm(true)}>
+                          <Database size={14} style={{ marginRight: "6px" }} />
+                          Add sample data
+                        </Button>
+                      )}
+                    </Card.Root>
+                    <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
                       <HStack gap="3" mb="3">
                         <CheckCircle2 size={20} color="#34D399" />
                         <Heading size="xs" color="white" fontWeight="bold">
-                          PostgreSQL RLS & Service Role Authentication
+                          Database connection
                         </Heading>
                       </HStack>
                       <VStack align="stretch" gap="2" fontSize="xs">

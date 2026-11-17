@@ -57,65 +57,77 @@ export default function LoginPage() {
 
   if (checkingSession) {
     return (
-      <Flex minH="100vh" align="center" justify="center" bg="#090D16">
-        <Spinner color="blue.500" size="xl" />
-        <Text color="gray.400" ml={4}>Checking authentication...</Text>
+      <Flex minH="100vh" align="center" justify="center" bg="#F5F8F5">
+        <Spinner color="#1A6B3C" size="lg" />
+        <Text color="#3D4D3E" ml={4}>Checking your session</Text>
       </Flex>
     );
   }
 
   return (
-    <Flex minH="100vh" align="center" justify="center" bg="#090D16">
-      <Box p={8} maxW="md" w="full" bg="#1A202C" borderRadius="xl" boxShadow="2xl">
-        <VStack gap={6} align="stretch" as="form" onSubmit={handleLogin}>
-          <Box textAlign="center">
-            <Heading color="white" size="lg">Shrawasti Admin</Heading>
-            <Text color="gray.400" mt={2}>Sign in to access the dashboard</Text>
+    <Flex minH="100vh" align="center" justify="center" bg="#F5F8F5" px="4">
+      <Box p={{ base: 6, sm: 8 }} maxW="420px" w="full" bg="white" borderRadius="24px" border="1px solid" borderColor="#D5DDD6">
+        <VStack gap={5} align="stretch" as="form" onSubmit={handleLogin}>
+          <Box>
+            <Text color="#1A6B3C" fontWeight="bold" fontSize="sm">Shrawasti</Text>
+            <Heading color="#1A1C1A" size="lg" mt={1}>Desk sign in</Heading>
+            <Text color="#3D4D3E" mt={2}>Use the admin email and password.</Text>
           </Box>
 
           {errorMsg && (
-            <Box bg="red.500" color="white" p={3} borderRadius="md" textAlign="center">
+            <Box bg="#FFDAD6" color="#BA1A1A" p={3} borderRadius="12px" fontWeight="semibold">
               {errorMsg}
             </Box>
           )}
 
           <Box>
-            <Text as="label" color="gray.300" mb={2} display="block" fontSize="sm" fontWeight="medium">Email Address</Text>
+            <Text as="label" color="#1A1C1A" mb={2} display="block" fontSize="sm" fontWeight="semibold">Email</Text>
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              bg="whiteAlpha.100"
-              color="white"
-              border="none"
-              _focus={{ ring: 2, ringColor: "blue.500" }}
+              bg="#F5F8F5"
+              color="#1A1C1A"
+              border="1px solid"
+              borderColor="#C8CFC8"
+              h="48px"
+              fontSize="16px"
+              borderRadius="12px"
+              _focus={{ borderColor: "#1A6B3C" }}
               required
             />
           </Box>
 
           <Box>
-            <Text as="label" color="gray.300" mb={2} display="block" fontSize="sm" fontWeight="medium">Password</Text>
+            <Text as="label" color="#1A1C1A" mb={2} display="block" fontSize="sm" fontWeight="semibold">Password</Text>
             <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              bg="whiteAlpha.100"
-              color="white"
-              border="none"
-              _focus={{ ring: 2, ringColor: "blue.500" }}
+              bg="#F5F8F5"
+              color="#1A1C1A"
+              border="1px solid"
+              borderColor="#C8CFC8"
+              h="48px"
+              fontSize="16px"
+              borderRadius="12px"
+              _focus={{ borderColor: "#1A6B3C" }}
               required
             />
           </Box>
 
           <Button
             type="submit"
-            colorScheme="blue"
-            size="lg"
-            fontSize="md"
+            bg="#1A6B3C"
+            color="white"
+            h="48px"
+            fontSize="16px"
+            borderRadius="12px"
+            _hover={{ bg: "#145A32" }}
             loading={loading}
-            loadingText="Signing in..."
+            loadingText="Signing in"
           >
-            Sign In
+            Sign in
           </Button>
         </VStack>
       </Box>

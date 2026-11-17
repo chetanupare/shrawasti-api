@@ -26,7 +26,7 @@ const isValidServiceKey =
   !supabaseServiceRoleKey.includes("your_") &&
   supabaseServiceRoleKey.trim().length > 20;
 
-if (!isValidServiceKey) {
+if (!isValidServiceKey && typeof window === "undefined") {
   const env = process.env.NODE_ENV;
   if (env === 'production') {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is required in production but not configured properly.");
