@@ -736,12 +736,29 @@ export default function AdminDashboard() {
     }
   };
 
+  const serviceLabel = (booking: any) => {
+    const services = booking.services;
+    if (Array.isArray(services)) {
+      const names = services.map((item) => item?.name || item?.serviceName).filter(Boolean);
+      if (names.length) return names.join(", ");
+    }
+    if (services && typeof services === "object" && services.name) return services.name;
+    return booking.service_name || "Wash";
+  };
+
+  const phoneLabel = (value?: string) => {
+    const digits = String(value || "").replace(/\D/g, "");
+    const local = digits.length > 10 ? digits.slice(-10) : digits;
+    if (local.length === 10) return `${local.slice(0, 5)} ${local.slice(5)}`;
+    return value || "—";
+  };
+
   // --- FILTERED DATA SETS ---
   const filteredBookings = bookings.filter((b) => {
     const q = globalSearch.toLowerCase();
     const custName = (b.user?.name || b.users?.name || "").toLowerCase();
     const custPhone = (b.user?.phone || b.users?.phone || b.user?.email || b.users?.email || "").toLowerCase();
-    const serviceName = (b.services?.name || b.service_name || "").toLowerCase();
+    const serviceName = (Array.isArray(b.services) ? b.services.map((item: any) => item?.name).join(" ") : b.services?.name || b.service_name || "").toLowerCase();
     const matchesQuery = !q || b.id?.toLowerCase().includes(q) || custName.includes(q) || custPhone.includes(q) || serviceName.includes(q) || b.status?.toLowerCase().includes(q);
     const matchesStatus = statusFilter === "all" || b.status?.toLowerCase() === statusFilter.toLowerCase();
     return matchesQuery && matchesStatus;
@@ -931,7 +948,7 @@ export default function AdminDashboard() {
   );
 
   return (
-    <Flex minH="100vh" bg="#0B0F19" color="#F8FAFC" flexDir="column" fontFamily="'Inter', sans-serif">
+    <Flex minH="100vh" bg="#0E1626" color="#F8FAFC" flexDir="column" fontFamily="'Inter', sans-serif">
       {/* Auth Error Overlay */}
       {authError && (
         <Flex position="fixed" inset={0} bg="#0B0F19" zIndex={10000} align="center" justify="center" direction="column" p={6} textAlign="center">
@@ -1141,7 +1158,7 @@ export default function AdminDashboard() {
                 {activeTab === "overview" && (
                   <Stack gap="4">
                     {/* KPI Cards Grid */}
-                    <Grid templateColumns={{ base: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(5, 1fr)" }} gap="3">
+                    <Grid templateColumns={{ base: "repeat(2, 1fr)", lg: "repeat(5, 1fr)" }} gap="3">
                       {[
                         {
                           title: "Total Revenue",
@@ -1183,34 +1200,25 @@ export default function AdminDashboard() {
                         return (
                           <Card.Root
                             key={idx}
-                            bg="#111827"
-                            borderColor="rgba(255, 255, 255, 0.12)"
+                            bg="#172033"
+                            borderColor="#2A3A52"
                             borderWidth="1px"
                             borderRadius="xl"
-                            p="3"
-                            boxShadow="0 4px 14px rgba(0,0,0,0.3)"
+                            p="4"
                           >
-                            <Flex justifyContent="space-between" alignItems="flex-start">
-                              <Box>
-                                <Text fontSize="11px" fontWeight="bold" color="#E2E8F0" mb="0.5">
-                                  {kpi.title}
-                                </Text>
-                                <Heading size="sm" color="#FFFFFF" fontWeight="800">
-                                  {kpi.value}
-                                </Heading>
-                              </Box>
-                              <Flex p="2" borderRadius="lg" bg={kpi.bg}>
-                                <Icon size={16} color={kpi.color} />
-                              </Flex>
-                            </Flex>
+                            <HStack gap="2" mb="2">
+                              <Icon size={16} color="#8FBC9A" />
+                              <Text fontSize="13px" color="#C5D0DC">{kpi.title}</Text>
+                            </HStack>
+                            <Heading size="lg" color="#FFFFFF" fontWeight="800">{kpi.value}</Heading>
                           </Card.Root>
                         );
                       })}
                     </Grid>
 
                     {/* Recent Bookings & Providers */}
-                    <Grid templateColumns={{ base: "1fr", lg: "2fr 1fr" }} gap="6">
-                      <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl">
+                    <Grid templateColumns={{ base: "1fr", xl: "1.7fr 0.8fr" }} gap="4" alignItems="start">
+                      <Card.Root bg="#172033" borderColor="#2A3A52" borderWidth="1px" borderRadius="2xl" overflow="hidden">
                         <Flex p="4" justifyContent="space-between" alignItems="center" borderBottom="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
                           <HStack gap="2">
                             <CalendarCheck size={18} color="#60A5FA" />
@@ -1223,7 +1231,7 @@ export default function AdminDashboard() {
                           </Button>
                         </Flex>
 
-                        <Box overflowX="auto" p="2">
+                        <Box overflowX="auto">
                           {filteredBookings.length === 0 ? (
                             <Flex p="6" justifyContent="center" alignItems="center" flexDir="column" gap="3">
                               <Text color="gray.300" fontSize="xs">
@@ -1231,13 +1239,13 @@ export default function AdminDashboard() {
                               </Text>
                             </Flex>
                           ) : (
-                            <Table.Root size="sm" variant="outline" colorScheme="whiteAlpha">
+                            <Table.Root size="md" w="full">
                               <Table.Header>
-                                <Table.Row borderColor="rgba(255, 255, 255, 0.12)">
-                                  <Table.ColumnHeader color="#CBD5E1" fontWeight="bold">ID / Date</Table.ColumnHeader>
-                                  <Table.ColumnHeader color="#CBD5E1" fontWeight="bold">Customer</Table.ColumnHeader>
-                                  <Table.ColumnHeader color="#CBD5E1" fontWeight="bold">Service & Price</Table.ColumnHeader>
-                                  <Table.ColumnHeader color="#CBD5E1" fontWeight="bold">Status</Table.ColumnHeader>
+                                <Table.Row>
+                                  <Table.ColumnHeader>Booking</Table.ColumnHeader>
+                                  <Table.ColumnHeader>Customer</Table.ColumnHeader>
+                                  <Table.ColumnHeader>Service</Table.ColumnHeader>
+                                  <Table.ColumnHeader>Status</Table.ColumnHeader>
                                 </Table.Row>
                               </Table.Header>
                               <Table.Body>
@@ -1245,34 +1253,34 @@ export default function AdminDashboard() {
                                   const st = getStatusColor(b.status);
                                   const custName = b.user?.name || b.users?.name || "Customer";
                                   const custPhone = b.user?.phone || b.users?.phone || b.user?.email || b.users?.email || "-";
-                                  const serviceName = b.services?.name || b.service_name || "Car Wash & Detailing";
-                                  const price = b.total || b.subtotal || b.total_amount || 499;
+                                  const serviceName = serviceLabel(b);
+                                  const price = b.total || b.subtotal || b.total_amount || 0;
                                   const dateStr = b.scheduleDate || b.booking_date || b.createdAt?.split("T")[0] || "Today";
 
                                   return (
-                                    <Table.Row key={b.id} _hover={{ bg: "rgba(255,255,255,0.06)" }} borderColor="rgba(255, 255, 255, 0.12)">
+                                    <Table.Row key={b.id} _hover={{ bg: "rgba(255,255,255,0.04)" }}>
                                       <Table.Cell>
-                                        <Text fontSize="xs" fontWeight="bold" color="#93C5FD">
-                                          #{b.id?.substring(0, 8)}
+                                        <Text fontSize="14px" fontWeight="bold" color="#D7E6FF">
+                                          #{String(b.id || "").slice(0, 8)}
                                         </Text>
-                                        <Text fontSize="10px" color="gray.300">
+                                        <Text fontSize="13px" color="#9FB0C3" whiteSpace="nowrap">
                                           {dateStr}
                                         </Text>
                                       </Table.Cell>
                                       <Table.Cell>
-                                        <Text fontSize="xs" fontWeight="bold" color="#FFFFFF">
+                                        <Text fontSize="14px" fontWeight="bold" color="#FFFFFF">
                                           {custName}
                                         </Text>
-                                        <Text fontSize="10px" color="gray.300">
-                                          {custPhone}
+                                        <Text fontSize="13px" color="#9FB0C3" whiteSpace="nowrap">
+                                          {phoneLabel(custPhone)}
                                         </Text>
                                       </Table.Cell>
                                       <Table.Cell>
-                                        <Text fontSize="xs" color="#F1F5F9">
+                                        <Text fontSize="14px" color="#F1F5F9">
                                           {serviceName}
                                         </Text>
-                                        <Text fontSize="xs" fontWeight="bold" color="#34D399">
-                                          ₹{price}
+                                        <Text fontSize="14px" fontWeight="bold" color="#8FBC9A">
+                                          ₹{Number(price).toLocaleString("en-IN")}
                                         </Text>
                                       </Table.Cell>
                                       <Table.Cell>
@@ -1290,8 +1298,8 @@ export default function AdminDashboard() {
                       </Card.Root>
 
                       {/* Active Providers Card */}
-                      <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl">
-                        <Flex p="4" justifyContent="space-between" alignItems="center" borderBottom="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+                      <Card.Root bg="#172033" borderColor="#2A3A52" borderWidth="1px" borderRadius="2xl" overflow="hidden">
+                        <Flex p="4" justifyContent="space-between" alignItems="center" borderBottom="1px solid" borderColor="#2A3A52">
                           <HStack gap="2">
                             <UserCheck size={18} color="#34D399" />
                             <Heading size="xs" color="#FFFFFF" fontWeight="bold">
@@ -1312,29 +1320,28 @@ export default function AdminDashboard() {
                             filteredProviders.slice(0, 4).map((p) => (
                               <Flex
                                 key={p.id}
-                                p="2.5"
+                                p="3"
                                 borderRadius="xl"
-                                bg="#1E293B"
+                                bg="#121B2E"
                                 justifyContent="space-between"
                                 alignItems="center"
-                                border="1px solid"
-                                borderColor="rgba(255, 255, 255, 0.08)"
+                                gap="3"
                               >
-                                <HStack gap="2.5">
-                                  <Flex w="34px" h="34px" borderRadius="full" bg="blue.900" color="#93C5FD" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="xs">
+                                <HStack gap="3" minW="0">
+                                  <Flex w="36px" h="36px" borderRadius="full" bg="#1A6B3C" color="white" alignItems="center" justifyContent="center" fontWeight="bold" fontSize="14px" flexShrink={0}>
                                     {p.name?.charAt(0) || "P"}
                                   </Flex>
-                                  <Box>
-                                    <Text fontSize="xs" fontWeight="bold" color="#FFFFFF">
+                                  <Box minW="0">
+                                    <Text fontSize="14px" fontWeight="bold" color="#FFFFFF" truncate>
                                       {p.name}
                                     </Text>
-                                    <Text fontSize="10px" color="gray.300">
-                                      {p.phone}
+                                    <Text fontSize="13px" color="#9FB0C3" whiteSpace="nowrap">
+                                      {phoneLabel(p.phone)}
                                     </Text>
                                   </Box>
                                 </HStack>
-                                <Badge colorScheme={p.isOnline ?? p.is_available ? "green" : "gray"} fontSize="10px" fontWeight="bold">
-                                  {p.isOnline ?? p.is_available ? "Available" : "Busy"}
+                                <Badge bg={(p.isOnline ?? p.is_available) ? "#145A32" : "#3A2A12"} color={(p.isOnline ?? p.is_available) ? "#D0E8D8" : "#FDE68A"} px="2" py="1" borderRadius="md" fontSize="12px">
+                                  {(p.isOnline ?? p.is_available) ? "Online" : "Offline"}
                                 </Badge>
                               </Flex>
                             ))
@@ -1409,7 +1416,7 @@ export default function AdminDashboard() {
                                 const st = getStatusColor(b.status);
                                 const custName = b.user?.name || b.users?.name || "Customer";
                                 const custPhone = b.user?.phone || b.users?.phone || b.user?.email || b.users?.email || "N/A";
-                                const serviceName = b.services?.name || b.service_name || "Full Washing";
+                                const serviceName = serviceLabel(b);
                                 const timeSlot = b.scheduleTime || b.booking_slot || b.time_slot || "10:00 AM";
                                 const price = b.total || b.subtotal || b.total_amount || 499;
                                 const providerName = b.provider?.name || b.providers?.name;
