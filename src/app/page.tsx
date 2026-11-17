@@ -609,7 +609,8 @@ export default function AdminDashboard() {
       });
       if (res.ok) {
         const data = await res.json();
-        showToast(`Broadcast notification sent to ${data.recipientsCount || 0} registered devices!`);
+        const web = data.webPush || {};
+        showToast(`Web push reached ${web.sent || 0} of ${web.attempted || 0} browsers. ${data.error || ""}`.trim());
         setShowBroadcastModal(false);
         setBroadcastForm({ title: "", message: "", targetAudience: "all" });
         fetchAllData(true);

@@ -133,7 +133,7 @@ export async function sendWebPushNotification({
 }: SendNotificationParams) {
   if (!vapidPublicKey || !vapidPrivateKey) {
     console.warn('VAPID keys not configured, skipping Web Push');
-    return;
+    return { attempted: 0, sent: 0, failed: 0 };
   }
 
   try {
@@ -143,7 +143,7 @@ export async function sendWebPushNotification({
       .eq('user_id', userId);
 
     if (error || !subscriptions || subscriptions.length === 0) {
-      return;
+      return { attempted: 0, sent: 0, failed: 0 };
     }
 
     const payload = JSON.stringify({
@@ -155,7 +155,9 @@ export async function sendWebPushNotification({
       badge: '/icons/icon-192.png',
     });
 
-    const sendPromises = subscriptions.map(async (sub) => {
+    let sent = 0;
+    let failed = 0;
+    for (const sub of subscriptions) {
       const pushSubscription = {
         endpoint: sub.endpoint,
         keys: {
@@ -166,18 +168,21 @@ export async function sendWebPushNotification({
 
       try {
         await webPush.sendNotification(pushSubscription, payload);
+        sent += 1;
       } catch (err: any) {
+        failed += 1;
         if (err.statusCode === 404 || err.statusCode === 410) {
           await removeExpiredSubscription(sub.endpoint);
         } else {
-          console.error('Web Push send error:', err);
+          console.error('Web Push send error:', err?.statusCode || err?.message || err);
         }
       }
-    });
+    }
 
-    await Promise.allSettled(sendPromises);
+    return { attempted: subscriptions.length, sent, failed };
   } catch (err) {
     console.error('Error in sendWebPushNotification:', err);
+    return { attempted: 0, sent: 0, failed: 0 };
   }
 }
 
@@ -194,11 +199,12 @@ export async function sendToUser(params: SendNotificationParams & { type?: Notif
     actionUrl,
   } = params;
 
-  await Promise.allSettled([
+  const [, , webPushResult] = await Promise.all([
     createNotification({ userId, title, message: body, type, actionUrl, metadata: data }),
     sendExpoPushNotification({ userId, title, body, data }),
     sendWebPushNotification({ userId, title, body, data, actionUrl }),
   ]);
+  return webPushResult;
 }
 
 /**
@@ -208,8 +214,16 @@ export async function sendToMultipleUsers(
   userIds: string[],
   params: Omit<SendNotificationParams, 'userId'>
 ) {
-  await Promise.allSettled(
+  const results = await Promise.all(
     userIds.map((userId) => sendToUser({ ...params, userId }))
+  );
+  return results.reduce(
+    (total, item) => ({
+      attempted: total.attempted + (item?.attempted || 0),
+      sent: total.sent + (item?.sent || 0),
+      failed: total.failed + (item?.failed || 0),
+    }),
+    { attempted: 0, sent: 0, failed: 0 }
   );
 }
 
