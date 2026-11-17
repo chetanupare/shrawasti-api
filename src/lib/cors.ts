@@ -8,6 +8,7 @@ const ALLOWED = new Set([
 export function allowedOrigin(origin: string | null): string | null {
   if (!origin) return null;
   if (ALLOWED.has(origin)) return origin;
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return origin;
   if (/^https:\/\/shrawasti-pwa(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(origin)) return origin;
   if (/^https:\/\/shrawasti-car-care(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(origin)) return origin;
   return null;

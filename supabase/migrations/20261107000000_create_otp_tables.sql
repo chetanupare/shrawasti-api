@@ -13,7 +13,8 @@ CREATE INDEX IF NOT EXISTS idx_otp_codes_expires_at ON public.otp_codes(expires_
 
 ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "otp_user_access" ON public.otp_codes
+DROP POLICY IF EXISTS "otp_user_access" ON public.otp_codes;
+CREATE POLICY "otp_user_access" ON public.otp_codes
     FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
 -- OTP rate limits table
