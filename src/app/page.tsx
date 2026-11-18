@@ -13,7 +13,7 @@ import {
   VStack,
   Heading,
   Text,
-  Badge,
+  Badge as ChakraBadge,
   Button,
   Input,
   Spinner,
@@ -68,6 +68,28 @@ const BODY_PRICE_FIELDS = [
   { key: "suv", label: "SUV" },
   { key: "7_seater", label: "7 seater" },
 ] as const;
+
+const deskTones: Record<string, { bg: string; color: string; border: string }> = {
+  teal: { bg: "rgba(20, 184, 166, 0.22)", color: "#99F6E4", border: "rgba(45, 212, 191, 0.55)" },
+  purple: { bg: "rgba(168, 85, 247, 0.22)", color: "#E9D5FF", border: "rgba(192, 132, 252, 0.55)" },
+  blue: { bg: "rgba(59, 130, 246, 0.22)", color: "#BFDBFE", border: "rgba(96, 165, 250, 0.55)" },
+  green: { bg: "rgba(16, 185, 129, 0.22)", color: "#A7F3D0", border: "rgba(52, 211, 153, 0.55)" },
+  red: { bg: "rgba(239, 68, 68, 0.22)", color: "#FECACA", border: "rgba(248, 113, 113, 0.55)" },
+  amber: { bg: "rgba(245, 158, 11, 0.22)", color: "#FDE68A", border: "rgba(251, 191, 36, 0.55)" },
+  gray: { bg: "#173528", color: "#E7F2EA", border: "#4E7A62" },
+};
+
+function Badge(props: React.ComponentProps<typeof ChakraBadge> & { colorScheme?: string }) {
+  if (props.bg || props.color) return <ChakraBadge {...props} />;
+  const tone = deskTones[String(props.colorScheme || "gray")] || deskTones.gray;
+  const { colorScheme, ...rest } = props;
+  return (
+    <ChakraBadge
+      {...rest}
+      style={{ background: tone.bg, color: tone.color, border: `1px solid ${tone.border}` }}
+    />
+  );
+}
 
 function ChoiceButton({
   selected,
@@ -966,6 +988,7 @@ export default function AdminDashboard() {
           h="40px"
           px="3"
           borderRadius="lg"
+          className="desk-keep"
           color="#FCA5A5"
           _hover={{ bg: "rgba(239, 68, 68, 0.12)" }}
         >
