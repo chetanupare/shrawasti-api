@@ -36,16 +36,19 @@ export async function POST(request: Request) {
       const amountPaid = paymentEntity.amount / 100; // paise to INR
       const currency = paymentEntity.currency;
 
-      if (!orderId) {
+      const qrId = paymentEntity.qr_code_id || paymentEntity.notes?.qr_code_id;
+      const bookingNote = paymentEntity.notes?.bookingId;
+
+      if (!orderId && !qrId && !bookingNote) {
          return NextResponse.json({ error: "Missing order_id in webhook" }, { status: 400 });
       }
 
-      // 1. Find the payment record
-      const { data: paymentRecord, error: paymentError } = await supabaseAdmin
-        .from("payments")
-        .select("*")
-        .eq("razorpay_order_id", orderId)
-        .single();
+      // 1. Find the payment record (checkout order or technician UPI QR).
+      let paymentQuery = supabaseAdmin.from("payments").select("*");
+      if (orderId) paymentQuery = paymentQuery.eq("razorpay_order_id", orderId);
+      else if (qrId) paymentQuery = paymentQuery.eq("razorpay_order_id", qrId);
+      else paymentQuery = paymentQuery.eq("booking_id", bookingNote).eq("status", "pending");
+      const { data: paymentRecord, error: paymentError } = await paymentQuery.maybeSingle();
 
       if (paymentError || !paymentRecord) {
         const carePass = await markCarePassPaid({
@@ -125,6 +128,28 @@ export async function POST(request: Request) {
       }
     }
     
+    if (event.event === "qr_code.credited") {
+      const qr = event.payload?.qr_code?.entity;
+      const paymentEntity = event.payload?.payment?.entity;
+      const qrId = qr?.id;
+      const paymentId = paymentEntity?.id;
+      const amountPaid = Number(paymentEntity?.amount || 0) / 100;
+      if (qrId && paymentId) {
+        const { data: paymentRecord } = await supabaseAdmin
+          .from("payments")
+          .select("*")
+          .eq("razorpay_order_id", qrId)
+          .maybeSingle();
+        if (paymentRecord && paymentRecord.status !== "paid" && Math.round(paymentRecord.amount) === Math.round(amountPaid)) {
+          await supabaseAdmin.from("payments").update({
+            status: "paid",
+            razorpay_payment_id: paymentId,
+          }).eq("id", paymentRecord.id);
+          await supabaseAdmin.from("bookings").update({ payment_status: "paid" }).eq("id", paymentRecord.booking_id);
+        }
+      }
+    }
+
     if (event.event === "payment.failed") {
        const paymentEntity = event.payload.payment.entity;
        const orderId = paymentEntity.order_id;

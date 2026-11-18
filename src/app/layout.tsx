@@ -20,6 +20,10 @@ export default function RootLayout({
       </head>
         <body style={{ margin: 0, padding: 0, fontFamily: "'Inter', sans-serif", backgroundColor: "#0E1626", color: "#F8FAFC" }}>
         <style>{`
+          .dark { color-scheme: dark; }
+          .dark input, .dark textarea, .dark select { color: #F8FAFC; }
+          .dark input::placeholder, .dark textarea::placeholder { color: #94A3B8; }
+          .dark option { background: #0F172A; color: #F8FAFC; }
           table, thead, tbody, tr, th, td { background: transparent; color: inherit; }
           thead th {
             background: #152033 !important;

@@ -6,6 +6,7 @@ import {
   markAsRead,
   markAllAsRead,
   deleteNotification,
+  createNotification,
 } from '@/lib/notifications';
 
 export async function GET(request: Request) {
@@ -30,6 +31,38 @@ export async function GET(request: Request) {
       unreadCount,
       hasMore: offset + notifications.length < total,
     });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const { error: authError, status: authStatus, user } = await requireAuthenticatedUser(request);
+    if (authError || !user) {
+      return NextResponse.json({ error: authError || 'Authentication required' }, { status: authStatus || 401 });
+    }
+
+    const body = await request.json();
+    const { title, message, type, actionUrl, metadata } = body;
+
+    if (!title || !message || !type) {
+      return NextResponse.json(
+        { error: 'title, message, and type are required' },
+        { status: 400 }
+      );
+    }
+
+    const notification = await createNotification({
+      userId: user.id,
+      title,
+      message,
+      type,
+      actionUrl,
+      metadata,
+    });
+
+    return NextResponse.json({ success: true, notification }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

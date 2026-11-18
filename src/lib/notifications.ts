@@ -3,6 +3,25 @@ import * as webPush from 'web-push';
 import { supabaseAdmin } from './supabase';
 
 const expo = new Expo();
+const pwaOrigin = (process.env.PWA_ORIGIN || 'https://shrawasti-pwa.vercel.app').replace(/\/$/, '');
+
+function clickAction(actionUrl?: string) {
+  if (!actionUrl) return `${pwaOrigin}/bookings/latest`;
+  if (actionUrl.startsWith('http://') || actionUrl.startsWith('https://')) return actionUrl;
+  return `${pwaOrigin}${actionUrl.startsWith('/') ? actionUrl : `/${actionUrl}`}`;
+}
+
+function pushFields(params: SendNotificationParams, ntfId?: string) {
+  const kind = params.data?.type || (params.type === 'order' ? 'booking_update' : params.type || 'general');
+  return {
+    ...(params.data || {}),
+    title: params.title,
+    body: params.body,
+    click_action: clickAction(params.actionUrl),
+    ntf_id: ntfId || params.data?.ntf_id || '',
+    type: kind,
+  };
+}
 
 // Initialize Web Push with VAPID keys
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
@@ -79,6 +98,7 @@ export async function sendExpoPushNotification({
   title,
   body,
   data,
+  actionUrl,
 }: SendNotificationParams) {
   try {
     const { data: tokens, error } = await supabaseAdmin
@@ -102,7 +122,7 @@ export async function sendExpoPushNotification({
         sound: 'default' as const,
         title,
         body,
-        data,
+        data: pushFields({ userId, title, body, data, actionUrl }),
       });
     }
 
@@ -146,11 +166,15 @@ export async function sendWebPushNotification({
       return { attempted: 0, sent: 0, failed: 0 };
     }
 
+    const fields = pushFields({ userId, title, body, data, actionUrl });
     const payload = JSON.stringify({
       title,
       body,
-      url: actionUrl || '/notifications',
-      data: data || {},
+      url: actionUrl || '/bookings/latest',
+      click_action: fields.click_action,
+      ntf_id: fields.ntf_id,
+      type: fields.type,
+      data: fields,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
     });
@@ -199,10 +223,12 @@ export async function sendToUser(params: SendNotificationParams & { type?: Notif
     actionUrl,
   } = params;
 
-  const [, , webPushResult] = await Promise.all([
-    createNotification({ userId, title, message: body, type, actionUrl, metadata: data }),
-    sendExpoPushNotification({ userId, title, body, data }),
-    sendWebPushNotification({ userId, title, body, data, actionUrl }),
+  const notification = await createNotification({ userId, title, message: body, type, actionUrl, metadata: data });
+  const ntfId = notification?.id ? String(notification.id) : '';
+  const fields = pushFields({ userId, title, body, data, type, actionUrl }, ntfId);
+  const [, webPushResult] = await Promise.all([
+    sendExpoPushNotification({ userId, title, body, data: fields, type, actionUrl }),
+    sendWebPushNotification({ userId, title, body, data: fields, type, actionUrl }),
   ]);
   return webPushResult;
 }

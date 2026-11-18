@@ -214,7 +214,7 @@ export default function AdminDashboard() {
         notifsRes,
       ] = await Promise.all([
         authFetch("/api/admin/dashboard/stats").then((r) => r.json()).catch(() => ({})),
-        authFetch("/api/admin/bookings").then((r) => r.json()).catch(() => ({})),
+        authFetch("/api/admin/bookings?limit=200").then((r) => r.json()).catch(() => ({})),
         authFetch("/api/admin/users").then((r) => r.json()).catch(() => ({})),
         authFetch("/api/admin/providers").then((r) => r.json()).catch(() => ({})),
         authFetch("/api/admin/services").then((r) => r.json()).catch(() => ({})),
@@ -724,17 +724,23 @@ export default function AdminDashboard() {
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case "confirmed":
+      case "accepted":
         return { bg: "rgba(20, 184, 166, 0.25)", color: "#5EEAD4", border: "rgba(45, 212, 191, 0.5)" };
+      case "assigned":
+      case "arrived":
+        return { bg: "rgba(59, 130, 246, 0.25)", color: "#93C5FD", border: "rgba(96, 165, 250, 0.5)" };
+      case "in_progress":
+        return { bg: "rgba(168, 85, 247, 0.25)", color: "#D8B4FE", border: "rgba(192, 132, 252, 0.5)" };
       case "completed":
         return { bg: "rgba(16, 185, 129, 0.25)", color: "#6EE7B7", border: "rgba(52, 211, 153, 0.5)" };
-      case "in_progress":
-        return { bg: "rgba(59, 130, 246, 0.25)", color: "#93C5FD", border: "rgba(96, 165, 250, 0.5)" };
       case "cancelled":
         return { bg: "rgba(239, 68, 68, 0.25)", color: "#FCA5A5", border: "rgba(248, 113, 113, 0.5)" };
       default:
         return { bg: "rgba(245, 158, 11, 0.25)", color: "#FDE047", border: "rgba(251, 191, 36, 0.5)" };
     }
   };
+
+  const bookingStatuses = ["pending", "confirmed", "accepted", "assigned", "arrived", "in_progress", "completed", "cancelled"];
 
   const serviceLabel = (booking: any) => {
     const services = booking.services;
@@ -948,7 +954,7 @@ export default function AdminDashboard() {
   );
 
   return (
-    <Flex minH="100vh" bg="#0E1626" color="#F8FAFC" flexDir="column" fontFamily="'Inter', sans-serif">
+    <Flex className="dark" minH="100vh" bg="#0E1626" color="#F8FAFC" flexDir="column" fontFamily="'Inter', sans-serif">
       {/* Auth Error Overlay */}
       {authError && (
         <Flex position="fixed" inset={0} bg="#0B0F19" zIndex={10000} align="center" justify="center" direction="column" p={6} textAlign="center">
@@ -1231,7 +1237,7 @@ export default function AdminDashboard() {
                           </Button>
                         </Flex>
 
-                        <Box overflowX="auto">
+                        <Box>
                           {filteredBookings.length === 0 ? (
                             <Flex p="6" justifyContent="center" alignItems="center" flexDir="column" gap="3">
                               <Text color="gray.300" fontSize="xs">
@@ -1239,6 +1245,28 @@ export default function AdminDashboard() {
                               </Text>
                             </Flex>
                           ) : (
+                            <>
+                              <Stack display={{ base: "flex", md: "none" }} gap="2" p="3">
+                                {filteredBookings.slice(0, 5).map((b) => {
+                                  const st = getStatusColor(b.status);
+                                  const custName = b.user?.name || b.users?.name || "Customer";
+                                  const serviceName = serviceLabel(b);
+                                  const price = b.total || b.subtotal || b.total_amount || 0;
+                                  const dateStr = b.scheduleDate || b.booking_date || b.createdAt?.split("T")[0] || "Today";
+                                  return (
+                                    <Box key={b.id} bg="#121B2E" borderRadius="xl" p="3">
+                                      <Flex justifyContent="space-between" alignItems="center" gap="2">
+                                        <Text fontSize="14px" fontWeight="bold" color="#D7E6FF">#{String(b.id || "").slice(0, 8)}</Text>
+                                        <Badge bg={st.bg} color={st.color} border="1px solid" borderColor={st.border} borderRadius="md" textTransform="capitalize" fontSize="xs">{b.status || "pending"}</Badge>
+                                      </Flex>
+                                      <Text mt="1" fontSize="14px" fontWeight="bold" color="#FFFFFF">{custName}</Text>
+                                      <Text fontSize="13px" color="#9FB0C3">{serviceName} · ₹{Number(price).toLocaleString("en-IN")}</Text>
+                                      <Text fontSize="13px" color="#9FB0C3">{dateStr}</Text>
+                                    </Box>
+                                  );
+                                })}
+                              </Stack>
+                              <Box display={{ base: "none", md: "block" }}>
                             <Table.Root size="md" w="full">
                               <Table.Header>
                                 <Table.Row>
@@ -1293,6 +1321,8 @@ export default function AdminDashboard() {
                                 })}
                               </Table.Body>
                             </Table.Root>
+                              </Box>
+                            </>
                           )}
                         </Box>
                       </Card.Root>
@@ -1369,8 +1399,8 @@ export default function AdminDashboard() {
                         />
                       </HStack>
 
-                      <HStack gap="1.5" overflowX="auto" w={{ base: "full", sm: "auto" }}>
-                        {["all", "pending", "confirmed", "completed", "cancelled"].map((st) => (
+                      <HStack gap="1.5" flexWrap="wrap" w={{ base: "full", sm: "auto" }}>
+                        {["all", ...bookingStatuses].map((st) => (
                           <Button
                             key={st}
                             size="xs"
@@ -1391,7 +1421,7 @@ export default function AdminDashboard() {
                     </Flex>
 
                     <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl">
-                      <Box overflowX="auto" p="3">
+                      <Box p="3">
                         {filteredBookings.length === 0 ? (
                           <Flex p="6" justifyContent="center" alignItems="center" flexDir="column" gap="3">
                             <Text color="gray.300" fontSize="sm">
@@ -1399,6 +1429,43 @@ export default function AdminDashboard() {
                             </Text>
                           </Flex>
                         ) : (
+                          <>
+                          <Stack display={{ base: "flex", md: "none" }} gap="3">
+                            {filteredBookings.map((b) => {
+                              const st = getStatusColor(b.status);
+                              const custName = b.user?.name || b.users?.name || "Customer";
+                              const custPhone = b.user?.phone || b.users?.phone || b.user?.email || b.users?.email || "N/A";
+                              const serviceName = serviceLabel(b);
+                              const timeSlot = b.scheduleTime || b.booking_slot || b.time_slot || "";
+                              const price = b.total || b.subtotal || b.total_amount || 0;
+                              const providerName = b.provider?.name || b.providers?.name;
+                              return (
+                                <Box key={b.id} bg="#172033" border="1px solid" borderColor="#2A3A52" borderRadius="xl" p="3">
+                                  <Flex justifyContent="space-between" alignItems="center" gap="2">
+                                    <Text fontSize="14px" fontWeight="bold" color="#93C5FD">#{b.id?.substring(0, 8)}</Text>
+                                    <Badge bg={st.bg} color={st.color} border="1px solid" borderColor={st.border} borderRadius="md" textTransform="capitalize" fontSize="xs">{b.status || "pending"}</Badge>
+                                  </Flex>
+                                  <Text mt="2" fontSize="15px" fontWeight="bold" color="#FFFFFF">{custName}</Text>
+                                  <Text fontSize="13px" color="#C5D0DC">{phoneLabel(custPhone)}</Text>
+                                  <Text mt="1" fontSize="14px" color="#F1F5F9">{serviceName}{timeSlot ? ` · ${timeSlot}` : ""}</Text>
+                                  <Flex mt="2" justifyContent="space-between" alignItems="center">
+                                    <Text fontSize="14px" fontWeight="bold" color={providerName ? "#5EEAD4" : "#FDE047"}>{providerName || "Unassigned"}</Text>
+                                    <Text fontSize="15px" fontWeight="bold" color="#34D399">₹{Number(price).toLocaleString("en-IN")}</Text>
+                                  </Flex>
+                                  <HStack mt="3" gap="2">
+                                    <Button size="sm" flex="1" colorScheme="purple" variant="subtle" onClick={() => {
+                                      setEditingBooking(b);
+                                      setBookingStatusForm(b.status || "pending");
+                                      setBookingProviderForm(b.assignedProviderId || b.assigned_provider_id || "");
+                                      setShowBookingModal(true);
+                                    }}>Edit</Button>
+                                    <Button size="sm" bg="#DC2626" color="#FFFFFF" onClick={() => handleDeleteBooking(b.id)}>Delete</Button>
+                                  </HStack>
+                                </Box>
+                              );
+                            })}
+                          </Stack>
+                          <Box display={{ base: "none", md: "block" }}>
                           <Table.Root size="sm" variant="outline" colorScheme="whiteAlpha">
                             <Table.Header>
                               <Table.Row borderColor="rgba(255, 255, 255, 0.12)">
@@ -1494,6 +1561,8 @@ export default function AdminDashboard() {
                               })}
                             </Table.Body>
                           </Table.Root>
+                          </Box>
+                          </>
                         )}
                       </Box>
                     </Card.Root>
@@ -1508,7 +1577,28 @@ export default function AdminDashboard() {
                     </Heading>
 
                     <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl">
-                      <Box overflowX="auto" p="3">
+                      <Box p="3">
+                        <Stack display={{ base: "flex", md: "none" }} gap="3">
+                          {filteredUsers.map((u) => (
+                            <Box key={u.id} bg="#172033" border="1px solid" borderColor="#2A3A52" borderRadius="xl" p="3">
+                              <Flex justifyContent="space-between" alignItems="center" gap="2">
+                                <Text fontSize="15px" fontWeight="bold" color="#FFFFFF">{u.name || "User"}</Text>
+                                <Badge colorScheme={u.role === "admin" ? "purple" : "blue"} fontSize="xs">{u.role || "user"}</Badge>
+                              </Flex>
+                              <Text mt="1" fontSize="13px" color="#C5D0DC">{u.phone || "No phone"}</Text>
+                              <Text fontSize="13px" color="#C5D0DC">{u.email || "No email"}</Text>
+                              <HStack mt="3" gap="2">
+                                <Button size="sm" flex="1" colorScheme="blue" variant="subtle" onClick={() => {
+                                  setEditingUser(u);
+                                  setUserForm({ name: u.name || "", phone: u.phone || "", email: u.email || "", role: u.role || "user" });
+                                  setShowUserModal(true);
+                                }}>Edit</Button>
+                                <Button size="sm" bg="#DC2626" color="#FFFFFF" onClick={() => handleDeleteUser(u.id)}>Delete</Button>
+                              </HStack>
+                            </Box>
+                          ))}
+                        </Stack>
+                        <Box display={{ base: "none", md: "block" }}>
                         <Table.Root size="sm" variant="outline">
                           <Table.Header>
                             <Table.Row borderColor="rgba(255, 255, 255, 0.12)">
@@ -1567,6 +1657,7 @@ export default function AdminDashboard() {
                             ))}
                           </Table.Body>
                         </Table.Root>
+                        </Box>
                       </Box>
                     </Card.Root>
                   </Stack>
@@ -1699,7 +1790,7 @@ export default function AdminDashboard() {
                       <Text fontSize="xs" fontWeight="bold" color="gray.300" display="flex" alignItems="center" gap="1">
                         Body Type:
                       </Text>
-                      <HStack gap="1.5" overflowX="auto">
+                      <HStack gap="1.5" flexWrap="wrap">
                         {["all", "Hatchback", "Sedan", "SUV", "Scooter", "Cruiser"].map((bt) => (
                           <Button
                             key={bt}
@@ -2008,7 +2099,7 @@ export default function AdminDashboard() {
                       <Text fontSize="xs" fontWeight="bold" color="gray.300" display="flex" alignItems="center" gap="1">
                         Body Type:
                       </Text>
-                      <HStack gap="1.5" overflowX="auto">
+                      <HStack gap="1.5" flexWrap="wrap">
                         {["all", "Hatchback", "Sedan", "SUV", "Scooter", "Cruiser", "Sports"].map((bt) => (
                           <Button
                             key={bt}
@@ -2330,6 +2421,19 @@ export default function AdminDashboard() {
                       <Text fontSize="xs" color="gray.400">No active customer subscriptions found.</Text>
                     ) : (
                       <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" overflow="hidden">
+                        <Stack display={{ base: "flex", md: "none" }} gap="3" p="3">
+                          {userSubscriptions.map((us) => (
+                            <Box key={us.id} bg="#172033" borderRadius="xl" p="3">
+                              <Flex justifyContent="space-between" alignItems="center" gap="2">
+                                <Text fontSize="14px" fontWeight="bold" color="#FFFFFF">{us.snapshotPlanName || "Plan"}</Text>
+                                <Badge colorScheme={us.status === "active" ? "green" : "amber"} fontSize="10px">{us.status}</Badge>
+                              </Flex>
+                              <Text mt="1" fontSize="13px" color="#C5D0DC">{us.billingPeriod || "Membership"}</Text>
+                              <Text fontSize="13px" color="#94A3B8">{us.currentPeriodStart ? new Date(us.currentPeriodStart).toLocaleDateString() : "No start date"}</Text>
+                            </Box>
+                          ))}
+                        </Stack>
+                        <Box display={{ base: "none", md: "block" }}>
                         <Table.Root size="sm" variant="line">
                           <Table.Header bg="#1E293B">
                             <Table.Row>
@@ -2356,6 +2460,7 @@ export default function AdminDashboard() {
                             ))}
                           </Table.Body>
                         </Table.Root>
+                        </Box>
                       </Card.Root>
                     )}
                   </Stack>
@@ -2956,7 +3061,7 @@ export default function AdminDashboard() {
               <Box>
                 <Text fontSize="xs" color="gray.300" mb="2" fontWeight="bold">Update Status:</Text>
                 <HStack gap="2" flexWrap="wrap">
-                  {["pending", "confirmed", "in_progress", "completed", "cancelled"].map((st) => (
+                  {bookingStatuses.map((st) => (
                     <Button
                       key={st}
                       size="xs"
