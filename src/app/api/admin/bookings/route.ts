@@ -76,6 +76,8 @@ export async function GET(request: Request) {
         discount: b.discount,
         total: b.total || b.total_amount,
         status: b.status,
+        cancellationReason: b.cancellation_reason,
+        cancelledAt: b.cancelled_at,
         createdAt: b.created_at,
         updatedAt: b.updated_at,
       };

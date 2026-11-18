@@ -3052,10 +3052,29 @@ export default function AdminDashboard() {
       {/* 5. Booking Modal */}
       {showBookingModal && editingBooking && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="560px" maxH="90vh" overflowY="auto">
             <Heading size="md" color="white" mb="2">
-              Manage Booking #{editingBooking.id?.substring(0, 8)}
+              Booking #{editingBooking.id?.substring(0, 8)}
             </Heading>
+            <Stack gap="2" mt="3" p="3" borderRadius="xl" bg="#172033">
+              {[
+                ["Customer", `${editingBooking.user?.name || "Customer"} · ${phoneLabel(editingBooking.user?.phone || editingBooking.user?.email)}`],
+                ["Vehicle", [editingBooking.vehicleSnapshot?.make, editingBooking.vehicleSnapshot?.model].filter(Boolean).join(" ") || editingBooking.vehicleSnapshot?.type || "—"],
+                ["Address", editingBooking.locationSnapshot?.address || editingBooking.locationSnapshot?.buildingName || "—"],
+                ["When", [String(editingBooking.scheduleDate || "").slice(0, 10), editingBooking.scheduleTime].filter(Boolean).join(" · ") || "—"],
+                ["Services", serviceLabel(editingBooking)],
+                ["Payment", `${editingBooking.paymentMethod || "—"} · ${editingBooking.paymentStatus || "—"}`],
+                ["Amount", `₹${Number(editingBooking.total || editingBooking.subtotal || 0).toLocaleString("en-IN")}${Number(editingBooking.discount) > 0 ? ` (₹${Number(editingBooking.discount).toLocaleString("en-IN")} off)` : ""}`],
+              ].map(([label, value]) => (
+                <Flex key={label} justifyContent="space-between" gap="3">
+                  <Text fontSize="12px" color="#94A3B8" flexShrink="0">{label}</Text>
+                  <Text fontSize="13px" color="#F8FAFC" textAlign="right">{value}</Text>
+                </Flex>
+              ))}
+              {editingBooking.cancellationReason && (
+                <Text fontSize="13px" color="#FCA5A5">Cancelled: {editingBooking.cancellationReason}</Text>
+              )}
+            </Stack>
 
             <Stack gap="4" mt="4">
               <Box>
