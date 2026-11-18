@@ -69,6 +69,31 @@ const BODY_PRICE_FIELDS = [
   { key: "7_seater", label: "7 seater" },
 ] as const;
 
+function ChoiceButton({
+  selected,
+  tone = "blue",
+  children,
+  ...props
+}: {
+  selected: boolean;
+  tone?: "blue" | "teal" | "purple" | "green" | "red";
+  children: React.ReactNode;
+} & Record<string, any>) {
+  const fill = { blue: "#2563EB", teal: "#0F766E", purple: "#6D28D9", green: "#15803D", red: "#B91C1C" }[tone];
+  return (
+    <Button
+      {...props}
+      bg={selected ? fill : "#172033"}
+      color="#F8FAFC"
+      borderWidth="1px"
+      borderColor={selected ? fill : "#94A3B8"}
+      _hover={{ bg: selected ? fill : "#243044", color: "#FFFFFF" }}
+    >
+      {children}
+    </Button>
+  );
+}
+
 function blankServiceForm() {
   return {
     name: "",
@@ -728,7 +753,7 @@ export default function AdminDashboard() {
         return { bg: "rgba(20, 184, 166, 0.25)", color: "#5EEAD4", border: "rgba(45, 212, 191, 0.5)" };
       case "assigned":
       case "arrived":
-        return { bg: "rgba(59, 130, 246, 0.25)", color: "#93C5FD", border: "rgba(96, 165, 250, 0.5)" };
+        return { bg: "rgba(59, 130, 246, 0.25)", color: "#C7E0D0", border: "rgba(96, 165, 250, 0.5)" };
       case "in_progress":
         return { bg: "rgba(168, 85, 247, 0.25)", color: "#D8B4FE", border: "rgba(192, 132, 252, 0.5)" };
       case "completed":
@@ -954,10 +979,10 @@ export default function AdminDashboard() {
   );
 
   return (
-    <Flex className="dark" minH="100vh" bg="#0E1626" color="#F8FAFC" flexDir="column" fontFamily="'Inter', sans-serif">
+    <Flex className="dark" minH="100vh" bg="#0B1712" color="#F4FBF6" flexDir="column" fontFamily="'Inter', sans-serif" style={{ backgroundImage: "radial-gradient(900px 420px at 0% 0%, rgba(26,107,60,0.28), transparent 55%)" }}>
       {/* Auth Error Overlay */}
       {authError && (
-        <Flex position="fixed" inset={0} bg="#0B0F19" zIndex={10000} align="center" justify="center" direction="column" p={6} textAlign="center">
+        <Flex position="fixed" inset={0} bg="#0B1712" zIndex={10000} align="center" justify="center" direction="column" p={6} textAlign="center">
           <ShieldCheck size={48} color="#EF4444" />
           <Heading mt={4} size="md" color="white">{authError}</Heading>
           <Text mt={2} color="gray.400">Please log in with an administrator account.</Text>
@@ -967,7 +992,7 @@ export default function AdminDashboard() {
 
       {/* Full Screen Loading Overlay while checking auth */}
       {authChecking && (
-        <Flex position="fixed" inset={0} bg="#0B0F19" zIndex={9999} align="center" justify="center" direction="column">
+        <Flex position="fixed" inset={0} bg="#0B1712" zIndex={9999} align="center" justify="center" direction="column">
           <Spinner size="xl" color="blue.500" />
           <Text mt={4} color="gray.400" fontWeight="500">Checking authorization...</Text>
         </Flex>
@@ -985,7 +1010,7 @@ export default function AdminDashboard() {
           px="4"
           py="3"
           borderRadius="xl"
-          boxShadow="0 10px 30px rgba(37, 99, 235, 0.5)"
+          boxShadow="0 10px 30px rgba(22, 128, 60, 0.35)"
           fontWeight="semibold"
           display="flex"
           alignItems="center"
@@ -1024,8 +1049,8 @@ export default function AdminDashboard() {
 
         {/* Mobile Slide-over Drawer / Menu */}
         {isMobileMenuOpen && (
-          <Box position="fixed" inset="0" zIndex="999" bg="blackAlpha.800" backdropFilter="blur(4px)" display={{ base: "block", md: "none" }}>
-            <Box w="280px" h="full" bg="#10261C" display="flex" flexDir="column" boxShadow="2xl">
+          <Box position="fixed" inset="0" zIndex="999" bg="rgba(6, 16, 12, 0.72)" backdropFilter="blur(6px)" display={{ base: "block", md: "none" }} onClick={() => setIsMobileMenuOpen(false)}>
+            <Box w="min(86vw, 300px)" h="full" bg="#10261C" display="flex" flexDir="column" boxShadow="2xl" onClick={(event) => event.stopPropagation()}>
               <Flex p="4" justifyContent="space-between" alignItems="center" borderBottom="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
                 <HStack gap="2">
                   <ShieldCheck size={20} color="#8FBC9A" />
@@ -1044,43 +1069,47 @@ export default function AdminDashboard() {
         <Flex flex="1" flexDir="column" overflowX="hidden" w="full">
           {/* Top Control Bar */}
           <Flex
-            h="60px"
+            minH="64px"
             px={{ base: "3", md: "5" }}
-            bg="#0F172A"
+            py="2"
+            bg="#10261C"
             borderBottom="1px solid"
-            borderColor="rgba(255, 255, 255, 0.12)"
+            borderColor="rgba(200, 230, 210, 0.12)"
             alignItems="center"
             justifyContent="space-between"
-            gap="3"
+            gap="2"
+            pt={{ base: "max(8px, env(safe-area-inset-top))", md: "2" }}
           >
-            <HStack gap="3" flex="1">
+            <HStack gap="2" flex="1" minW="0">
               <IconButton
                 display={{ base: "inline-flex", md: "none" }}
                 onClick={() => setIsMobileMenuOpen(true)}
-                size="sm"
+                size="md"
                 variant="ghost"
                 color="white"
                 aria-label="Open menu"
+                h="44px"
+                w="44px"
               >
-                <Menu size={20} />
+                <Menu size={22} />
               </IconButton>
 
-              <Heading size="md" color="white" fontSize={{ base: "md", md: "lg" }}>
+              <Heading size="md" color="white" fontSize={{ base: "18px", md: "22px" }} truncate>
                 {pageTitles[activeTab] || activeTab}
               </Heading>
 
               {searchHint[activeTab] && (
               <Flex
                 alignItems="center"
-                bg="#1E293B"
+                bg="#1C3328"
                 borderRadius="xl"
                 px="3"
-                h="40px"
+                h="44px"
                 border="1px solid"
-                borderColor="rgba(255, 255, 255, 0.2)"
+                borderColor="rgba(200, 230, 210, 0.16)"
                 w="full"
                 maxW="360px"
-                display={{ base: "none", sm: "flex" }}
+                display={{ base: "none", md: "flex" }}
               >
                 <Search size={16} color="#CBD5E1" style={{ marginRight: "8px" }} />
                 <Input
@@ -1112,28 +1141,29 @@ export default function AdminDashboard() {
               onClick={() => fetchAllData(true)}
               size="sm"
               variant="outline"
-              borderColor="rgba(255, 255, 255, 0.25)"
-              color="#F8FAFC"
+              borderColor="rgba(200, 230, 210, 0.24)"
+              color="#F4FBF6"
               _hover={{ bg: "whiteAlpha.200", color: "white" }}
               borderRadius="lg"
-              px="3"
-              h="40px"
+              px={{ base: "2", md: "3" }}
+              h="44px"
+              flexShrink="0"
             >
-              <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} style={{ marginRight: "6px" }} />
-              Refresh
+              <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+              <Text display={{ base: "none", md: "inline" }} ml="2">Refresh</Text>
             </Button>
           </Flex>
 
           {/* Mobile Global Search Bar */}
-          <Box px="4" pt="3" display={{ base: searchHint[activeTab] ? "block" : "none", sm: "none" }}>
+          <Box px="3" pt="3" display={{ base: searchHint[activeTab] ? "block" : "none", md: "none" }}>
             <Flex
               alignItems="center"
-              bg="#1E293B"
+              bg="#1C3328"
               borderRadius="xl"
               px="3"
-              py="2"
+              h="48px"
               border="1px solid"
-              borderColor="rgba(255, 255, 255, 0.2)"
+              borderColor="rgba(200, 230, 210, 0.16)"
             >
               <Search size={15} color="#CBD5E1" style={{ marginRight: "8px" }} />
               <Input
@@ -1150,10 +1180,10 @@ export default function AdminDashboard() {
           </Box>
 
           {/* Content Body */}
-          <Box p={{ base: "3", md: "5" }} flex="1" overflowY="auto">
+          <Box p={{ base: "3", md: "5" }} pb={{ base: "calc(16px + env(safe-area-inset-bottom))", md: "5" }} flex="1" overflowY="auto">
             {loading ? (
               <Flex h="300px" alignItems="center" justifyContent="center" flexDir="column" gap="4">
-                <Spinner size="xl" color="blue.400" />
+                <Spinner size="xl" color="#3DDC84" />
                 <Text color="gray.300" fontSize="sm">
                   Fetching real-time records from Supabase PostgreSQL...
                 </Text>
@@ -1177,7 +1207,7 @@ export default function AdminDashboard() {
                           title: "Total Bookings",
                           value: stats.totalBookings || bookings.length || 0,
                           icon: CalendarCheck,
-                          color: "#60A5FA",
+                          color: "#8FBC9A",
                           bg: "rgba(59, 130, 246, 0.25)",
                         },
                         {
@@ -1206,8 +1236,8 @@ export default function AdminDashboard() {
                         return (
                           <Card.Root
                             key={idx}
-                            bg="#172033"
-                            borderColor="#2A3A52"
+                            bg="#173528"
+                            borderColor="#2C4A3C"
                             borderWidth="1px"
                             borderRadius="xl"
                             p="4"
@@ -1224,15 +1254,15 @@ export default function AdminDashboard() {
 
                     {/* Recent Bookings & Providers */}
                     <Grid templateColumns={{ base: "1fr", xl: "1.7fr 0.8fr" }} gap="4" alignItems="start">
-                      <Card.Root bg="#172033" borderColor="#2A3A52" borderWidth="1px" borderRadius="2xl" overflow="hidden">
+                      <Card.Root bg="#173528" borderColor="#2C4A3C" borderWidth="1px" borderRadius="2xl" overflow="hidden">
                         <Flex p="4" justifyContent="space-between" alignItems="center" borderBottom="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
                           <HStack gap="2">
-                            <CalendarCheck size={18} color="#60A5FA" />
+                            <CalendarCheck size={18} color="#8FBC9A" />
                             <Heading size="xs" color="#FFFFFF" fontWeight="bold">
                               Recent Bookings ({filteredBookings.length})
                             </Heading>
                           </HStack>
-                          <Button size="xs" variant="ghost" color="#60A5FA" onClick={() => setActiveTab("bookings")}>
+                          <Button size="xs" variant="ghost" color="#8FBC9A" onClick={() => setActiveTab("bookings")}>
                             View All
                           </Button>
                         </Flex>
@@ -1254,7 +1284,7 @@ export default function AdminDashboard() {
                                   const price = b.total || b.subtotal || b.total_amount || 0;
                                   const dateStr = b.scheduleDate || b.booking_date || b.createdAt?.split("T")[0] || "Today";
                                   return (
-                                    <Box key={b.id} bg="#121B2E" borderRadius="xl" p="3">
+                                    <Box key={b.id} bg="#173528" borderRadius="xl" p="3">
                                       <Flex justifyContent="space-between" alignItems="center" gap="2">
                                         <Text fontSize="14px" fontWeight="bold" color="#D7E6FF">#{String(b.id || "").slice(0, 8)}</Text>
                                         <Badge bg={st.bg} color={st.color} border="1px solid" borderColor={st.border} borderRadius="md" textTransform="capitalize" fontSize="xs">{b.status || "pending"}</Badge>
@@ -1328,15 +1358,15 @@ export default function AdminDashboard() {
                       </Card.Root>
 
                       {/* Active Providers Card */}
-                      <Card.Root bg="#172033" borderColor="#2A3A52" borderWidth="1px" borderRadius="2xl" overflow="hidden">
-                        <Flex p="4" justifyContent="space-between" alignItems="center" borderBottom="1px solid" borderColor="#2A3A52">
+                      <Card.Root bg="#173528" borderColor="#2C4A3C" borderWidth="1px" borderRadius="2xl" overflow="hidden">
+                        <Flex p="4" justifyContent="space-between" alignItems="center" borderBottom="1px solid" borderColor="#2C4A3C">
                           <HStack gap="2">
                             <UserCheck size={18} color="#34D399" />
                             <Heading size="xs" color="#FFFFFF" fontWeight="bold">
                               Providers ({filteredProviders.length})
                             </Heading>
                           </HStack>
-                          <Button size="xs" variant="ghost" color="#60A5FA" onClick={() => setActiveTab("providers")}>
+                          <Button size="xs" variant="ghost" color="#8FBC9A" onClick={() => setActiveTab("providers")}>
                             View All
                           </Button>
                         </Flex>
@@ -1352,7 +1382,7 @@ export default function AdminDashboard() {
                                 key={p.id}
                                 p="3"
                                 borderRadius="xl"
-                                bg="#121B2E"
+                                bg="#173528"
                                 justifyContent="space-between"
                                 alignItems="center"
                                 gap="3"
@@ -1391,7 +1421,7 @@ export default function AdminDashboard() {
                           placeholder="Search bookings..."
                           value={globalSearch}
                           onChange={(e) => setGlobalSearch(e.target.value)}
-                          bg="#1E293B"
+                          bg="#1C3328"
                           borderColor="rgba(255, 255, 255, 0.2)"
                           color="#FFFFFF"
                           size="sm"
@@ -1399,17 +1429,20 @@ export default function AdminDashboard() {
                         />
                       </HStack>
 
-                      <HStack gap="1.5" flexWrap="wrap" w={{ base: "full", sm: "auto" }}>
+                      <HStack gap="1.5" overflowX="auto" flexWrap="nowrap" w={{ base: "full", md: "auto" }} pb="1">
                         {["all", ...bookingStatuses].map((st) => (
                           <Button
                             key={st}
                             size="xs"
+                            flexShrink={0}
+                            h="36px"
+                            px="3"
                             onClick={() => setStatusFilter(st)}
-                            bg={statusFilter === st ? "#2563EB" : "#1E293B"}
+                            bg={statusFilter === st ? "#1A6B3C" : "#1C3328"}
                             color={statusFilter === st ? "#FFFFFF" : "#E2E8F0"}
                             border="1px solid"
-                            borderColor={statusFilter === st ? "#3B82F6" : "rgba(255, 255, 255, 0.2)"}
-                            _hover={{ bg: statusFilter === st ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
+                            borderColor={statusFilter === st ? "#2F8F57" : "rgba(255, 255, 255, 0.2)"}
+                            _hover={{ bg: statusFilter === st ? "#145A32" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                             borderRadius="lg"
                             textTransform="capitalize"
                             fontWeight={statusFilter === st ? "bold" : "normal"}
@@ -1420,7 +1453,7 @@ export default function AdminDashboard() {
                       </HStack>
                     </Flex>
 
-                    <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl">
+                    <Card.Root bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl">
                       <Box p="3">
                         {filteredBookings.length === 0 ? (
                           <Flex p="6" justifyContent="center" alignItems="center" flexDir="column" gap="3">
@@ -1440,9 +1473,9 @@ export default function AdminDashboard() {
                               const price = b.total || b.subtotal || b.total_amount || 0;
                               const providerName = b.provider?.name || b.providers?.name;
                               return (
-                                <Box key={b.id} bg="#172033" border="1px solid" borderColor="#2A3A52" borderRadius="xl" p="3">
+                                <Box key={b.id} bg="#173528" border="1px solid" borderColor="#2C4A3C" borderRadius="xl" p="3">
                                   <Flex justifyContent="space-between" alignItems="center" gap="2">
-                                    <Text fontSize="14px" fontWeight="bold" color="#93C5FD">#{b.id?.substring(0, 8)}</Text>
+                                    <Text fontSize="14px" fontWeight="bold" color="#C7E0D0">#{b.id?.substring(0, 8)}</Text>
                                     <Badge bg={st.bg} color={st.color} border="1px solid" borderColor={st.border} borderRadius="md" textTransform="capitalize" fontSize="xs">{b.status || "pending"}</Badge>
                                   </Flex>
                                   <Text mt="2" fontSize="15px" fontWeight="bold" color="#FFFFFF">{custName}</Text>
@@ -1490,7 +1523,7 @@ export default function AdminDashboard() {
 
                                 return (
                                   <Table.Row key={b.id} _hover={{ bg: "rgba(255,255,255,0.06)" }} borderColor="rgba(255, 255, 255, 0.12)">
-                                    <Table.Cell fontWeight="bold" color="#93C5FD" fontSize="xs">
+                                    <Table.Cell fontWeight="bold" color="#C7E0D0" fontSize="xs">
                                       #{b.id?.substring(0, 8)}
                                     </Table.Cell>
                                     <Table.Cell>
@@ -1576,11 +1609,11 @@ export default function AdminDashboard() {
                       Users ({filteredUsers.length})
                     </Heading>
 
-                    <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl">
+                    <Card.Root bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl">
                       <Box p="3">
                         <Stack display={{ base: "flex", md: "none" }} gap="3">
                           {filteredUsers.map((u) => (
-                            <Box key={u.id} bg="#172033" border="1px solid" borderColor="#2A3A52" borderRadius="xl" p="3">
+                            <Box key={u.id} bg="#173528" border="1px solid" borderColor="#2C4A3C" borderRadius="xl" p="3">
                               <Flex justifyContent="space-between" alignItems="center" gap="2">
                                 <Text fontSize="15px" fontWeight="bold" color="#FFFFFF">{u.name || "User"}</Text>
                                 <Badge colorScheme={u.role === "admin" ? "purple" : "blue"} fontSize="xs">{u.role || "user"}</Badge>
@@ -1685,7 +1718,7 @@ export default function AdminDashboard() {
 
                     <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap="4">
                       {filteredProviders.map((p) => (
-                        <Card.Root key={p.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
+                        <Card.Root key={p.id} bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
                           <Flex justifyContent="space-between" alignItems="flex-start" mb="3">
                             <HStack gap="2.5">
                               <Flex w="36px" h="36px" borderRadius="xl" bg="teal.900" color="#5EEAD4" alignItems="center" justifyContent="center" fontWeight="bold">
@@ -1741,7 +1774,7 @@ export default function AdminDashboard() {
                   <Stack gap="6">
                     <Flex justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="3">
                       <HStack gap="2">
-                        <Wrench size={18} color="#60A5FA" />
+                        <Wrench size={18} color="#8FBC9A" />
                         <Heading size="xs" color="white" fontWeight="bold">
                           Services Catalog ({filteredServices.length})
                         </Heading>
@@ -1761,7 +1794,7 @@ export default function AdminDashboard() {
                     </Flex>
 
                     {/* VEHICLE TYPE & BODY TYPE FILTER BAR */}
-                    <Flex gap="3" flexWrap="wrap" alignItems="center" bg="#111827" p="3" borderRadius="xl" border="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+                    <Flex gap="3" flexWrap="wrap" alignItems="center" bg="#143024" p="3" borderRadius="xl" border="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
                       <Text fontSize="xs" fontWeight="bold" color="gray.300" display="flex" alignItems="center" gap="1">
                         <SlidersHorizontal size={14} /> Category:
                       </Text>
@@ -1772,11 +1805,11 @@ export default function AdminDashboard() {
                             key={v.id}
                             size="xs"
                             onClick={() => { setServiceVehicleFilter(v.id); setServiceBodyTypeFilter("all"); }}
-                            bg={serviceVehicleFilter === v.id ? "#2563EB" : "#1E293B"}
+                            bg={serviceVehicleFilter === v.id ? "#1A6B3C" : "#1C3328"}
                             color={serviceVehicleFilter === v.id ? "#FFFFFF" : "#E2E8F0"}
                             border="1px solid"
-                            borderColor={serviceVehicleFilter === v.id ? "#3B82F6" : "rgba(255, 255, 255, 0.2)"}
-                            _hover={{ bg: serviceVehicleFilter === v.id ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
+                            borderColor={serviceVehicleFilter === v.id ? "#2F8F57" : "rgba(255, 255, 255, 0.2)"}
+                            _hover={{ bg: serviceVehicleFilter === v.id ? "#145A32" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                             borderRadius="lg"
                             fontWeight={serviceVehicleFilter === v.id ? "bold" : "normal"}
                           >
@@ -1796,7 +1829,7 @@ export default function AdminDashboard() {
                             key={bt}
                             size="xs"
                             onClick={() => setServiceBodyTypeFilter(bt)}
-                            bg={serviceBodyTypeFilter === bt ? "#7C3AED" : "#1E293B"}
+                            bg={serviceBodyTypeFilter === bt ? "#7C3AED" : "#1C3328"}
                             color={serviceBodyTypeFilter === bt ? "#FFFFFF" : "#E2E8F0"}
                             border="1px solid"
                             borderColor={serviceBodyTypeFilter === bt ? "#8B5CF6" : "rgba(255, 255, 255, 0.2)"}
@@ -1822,7 +1855,7 @@ export default function AdminDashboard() {
                         {filteredServices.map((s) => {
                           const is2W = (s.vehicleType || s.vehicle_type || "").includes("2W") || (s.category || "").includes("2w") || (s.category || "").includes("bike");
                           return (
-                            <Card.Root key={s.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="3">
+                            <Card.Root key={s.id} bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="3">
                               <Flex justifyContent="space-between" alignItems="flex-start" mb="2">
                                 <Box>
                                   <Heading size="xs" color="#FFFFFF" fontWeight="bold" mb="1">
@@ -1939,7 +1972,7 @@ export default function AdminDashboard() {
                           const cap = s.maxCapacity || s.max_capacity || 10;
                           const active = s.isActive ?? s.is_active ?? true;
                           return (
-                            <Card.Root key={s.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="3.5">
+                            <Card.Root key={s.id} bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="3.5">
                               <Flex justifyContent="space-between" alignItems="center" mb="3">
                                 <HStack gap="1.5">
                                   <Clock size={14} color="#A7F3D0" />
@@ -1965,7 +1998,7 @@ export default function AdminDashboard() {
                                 </Button>
                               </Flex>
 
-                              <Box bg="#1E293B" p="2.5" borderRadius="lg" border="1px solid" borderColor="rgba(255, 255, 255, 0.1)" mb="3">
+                              <Box bg="#1C3328" p="2.5" borderRadius="lg" border="1px solid" borderColor="rgba(255, 255, 255, 0.1)" mb="3">
                                 <Text fontSize="10px" color="gray.400" fontWeight="bold" mb="1.5" textAlign="center">
                                   SLOT CAPACITY MANAGEMENT
                                 </Text>
@@ -2070,7 +2103,7 @@ export default function AdminDashboard() {
                     </Flex>
 
                     {/* VEHICLE CATALOG FILTERS BAR */}
-                    <Flex gap="3" flexWrap="wrap" alignItems="center" bg="#111827" p="3" borderRadius="xl" border="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
+                    <Flex gap="3" flexWrap="wrap" alignItems="center" bg="#143024" p="3" borderRadius="xl" border="1px solid" borderColor="rgba(255, 255, 255, 0.12)">
                       <Text fontSize="xs" fontWeight="bold" color="gray.300" display="flex" alignItems="center" gap="1">
                         <SlidersHorizontal size={14} /> Category:
                       </Text>
@@ -2081,7 +2114,7 @@ export default function AdminDashboard() {
                             key={vc.id}
                             size="xs"
                             onClick={() => { setVehicleCategoryFilter(vc.id); setVehicleBodyTypeFilter("all"); }}
-                            bg={vehicleCategoryFilter === vc.id ? "#7C3AED" : "#1E293B"}
+                            bg={vehicleCategoryFilter === vc.id ? "#7C3AED" : "#1C3328"}
                             color={vehicleCategoryFilter === vc.id ? "#FFFFFF" : "#E2E8F0"}
                             border="1px solid"
                             borderColor={vehicleCategoryFilter === vc.id ? "#8B5CF6" : "rgba(255, 255, 255, 0.2)"}
@@ -2105,11 +2138,11 @@ export default function AdminDashboard() {
                             key={bt}
                             size="xs"
                             onClick={() => setVehicleBodyTypeFilter(bt)}
-                            bg={vehicleBodyTypeFilter === bt ? "#2563EB" : "#1E293B"}
+                            bg={vehicleBodyTypeFilter === bt ? "#1A6B3C" : "#1C3328"}
                             color={vehicleBodyTypeFilter === bt ? "#FFFFFF" : "#E2E8F0"}
                             border="1px solid"
-                            borderColor={vehicleBodyTypeFilter === bt ? "#3B82F6" : "rgba(255, 255, 255, 0.2)"}
-                            _hover={{ bg: vehicleBodyTypeFilter === bt ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
+                            borderColor={vehicleBodyTypeFilter === bt ? "#2F8F57" : "rgba(255, 255, 255, 0.2)"}
+                            _hover={{ bg: vehicleBodyTypeFilter === bt ? "#145A32" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                             borderRadius="lg"
                             textTransform="capitalize"
                             fontWeight={vehicleBodyTypeFilter === bt ? "bold" : "normal"}
@@ -2132,11 +2165,11 @@ export default function AdminDashboard() {
                           const isBike = (v.category || "").toLowerCase().includes("bike") || (v.category || "").toLowerCase().includes("2w");
                           const imgUrl = v.modelImage || v.model_image;
                           return (
-                            <Card.Root key={v.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="3">
+                            <Card.Root key={v.id} bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="3">
                               <Flex justifyContent="space-between" alignItems="flex-start" mb="2">
                                 <HStack gap="2">
                                   {imgUrl ? (
-                                    <Flex w="40px" h="40px" borderRadius="lg" overflow="hidden" bg="#1E293B" border="1px solid" borderColor="rgba(255, 255, 255, 0.2)" flexShrink={0} alignItems="center" justifyContent="center">
+                                    <Flex w="40px" h="40px" borderRadius="lg" overflow="hidden" bg="#1C3328" border="1px solid" borderColor="rgba(255, 255, 255, 0.2)" flexShrink={0} alignItems="center" justifyContent="center">
                                       <img
                                         src={imgUrl}
                                         alt={`${v.brand} ${v.model}`}
@@ -2238,7 +2271,7 @@ export default function AdminDashboard() {
                     ) : (
                       <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap="3">
                         {coupons.map((c) => (
-                          <Card.Root key={c.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
+                          <Card.Root key={c.id} bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
                             <Flex justifyContent="space-between" alignItems="flex-start" mb="2">
                               <Box>
                                 <HStack gap="1.5">
@@ -2256,7 +2289,7 @@ export default function AdminDashboard() {
                               </Badge>
                             </Flex>
 
-                            <Stack gap="1.5" bg="#1E293B" p="2.5" borderRadius="lg" my="2" fontSize="11px">
+                            <Stack gap="1.5" bg="#1C3328" p="2.5" borderRadius="lg" my="2" fontSize="11px">
                               <Flex justifyContent="space-between">
                                 <Text color="gray.400">Discount:</Text>
                                 <Text color="#34D399" fontWeight="bold">
@@ -2344,7 +2377,7 @@ export default function AdminDashboard() {
 
                     <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap="3">
                       {subscriptions.map((p) => (
-                        <Card.Root key={p.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
+                        <Card.Root key={p.id} bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
                           <Flex justifyContent="space-between" alignItems="flex-start" mb="2">
                             <Box>
                               <HStack gap="1.5">
@@ -2368,7 +2401,7 @@ export default function AdminDashboard() {
                             ₹{p.basePrice} <Text as="span" fontSize="xs" fontWeight="normal" color="gray.400">/ {p.validityDays} days</Text>
                           </Text>
 
-                          <VStack align="stretch" gap="1" bg="#1E293B" p="2.5" borderRadius="lg" my="2" fontSize="11px">
+                          <VStack align="stretch" gap="1" bg="#1C3328" p="2.5" borderRadius="lg" my="2" fontSize="11px">
                             {(p.benefits || []).map((b: string, i: number) => (
                               <HStack key={i} gap="1.5">
                                 <Check size={12} color="#34D399" />
@@ -2420,10 +2453,10 @@ export default function AdminDashboard() {
                     {userSubscriptions.length === 0 ? (
                       <Text fontSize="xs" color="gray.400">No active customer subscriptions found.</Text>
                     ) : (
-                      <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" overflow="hidden">
+                      <Card.Root bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" overflow="hidden">
                         <Stack display={{ base: "flex", md: "none" }} gap="3" p="3">
                           {userSubscriptions.map((us) => (
-                            <Box key={us.id} bg="#172033" borderRadius="xl" p="3">
+                            <Box key={us.id} bg="#173528" borderRadius="xl" p="3">
                               <Flex justifyContent="space-between" alignItems="center" gap="2">
                                 <Text fontSize="14px" fontWeight="bold" color="#FFFFFF">{us.snapshotPlanName || "Plan"}</Text>
                                 <Badge colorScheme={us.status === "active" ? "green" : "amber"} fontSize="10px">{us.status}</Badge>
@@ -2435,7 +2468,7 @@ export default function AdminDashboard() {
                         </Stack>
                         <Box display={{ base: "none", md: "block" }}>
                         <Table.Root size="sm" variant="line">
-                          <Table.Header bg="#1E293B">
+                          <Table.Header bg="#1C3328">
                             <Table.Row>
                               <Table.ColumnHeader color="gray.300">User ID</Table.ColumnHeader>
                               <Table.ColumnHeader color="gray.300">Plan</Table.ColumnHeader>
@@ -2485,7 +2518,7 @@ export default function AdminDashboard() {
                     ) : (
                       <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap="3">
                         {reviews.map((r) => (
-                          <Card.Root key={r.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
+                          <Card.Root key={r.id} bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
                             <Flex justifyContent="space-between" alignItems="center" mb="2">
                               <HStack gap="1">
                                 {[1, 2, 3, 4, 5].map((star) => (
@@ -2545,7 +2578,7 @@ export default function AdminDashboard() {
                   <Stack gap="6">
                     <Flex justifyContent="space-between" alignItems="center" flexWrap="wrap" gap="3">
                       <HStack gap="2">
-                        <Bell size={20} color="#60A5FA" />
+                        <Bell size={20} color="#8FBC9A" />
                         <Heading size="xs" color="white" fontWeight="bold">
                           Broadcast Push Notifications & Registered Devices ({deviceTokens.length})
                         </Heading>
@@ -2563,7 +2596,7 @@ export default function AdminDashboard() {
                       </Button>
                     </Flex>
 
-                    <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
+                    <Card.Root bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
                       <HStack gap="3">
                         <Bell size={24} color="#38BDF8" />
                         <Box>
@@ -2584,7 +2617,7 @@ export default function AdminDashboard() {
                     ) : (
                       <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }} gap="3">
                         {broadcastHistory.map((h) => (
-                          <Card.Root key={h.id} bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
+                          <Card.Root key={h.id} bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="xl" p="4">
                             <Flex justifyContent="space-between" alignItems="flex-start" mb="2">
                               <Heading size="xs" color="#38BDF8" fontWeight="bold">
                                 {h.title}
@@ -2613,7 +2646,7 @@ export default function AdminDashboard() {
                       Database Health & Monitoring
                     </Heading>
 
-                    <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
+                    <Card.Root bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
                       <Heading size="sm" color="white" mb="2">Sample data</Heading>
                       <Text color="gray.300" fontSize="sm" mb="3">
                         Adds sample services, arrival windows, vehicles, crew, and coupons. Vehicles can be added again if you run this twice.
@@ -2630,7 +2663,7 @@ export default function AdminDashboard() {
                         </Button>
                       )}
                     </Card.Root>
-                    <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
+                    <Card.Root bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p="4">
                       <HStack gap="3" mb="3">
                         <CheckCircle2 size={20} color="#34D399" />
                         <Heading size="xs" color="white" fontWeight="bold">
@@ -2656,7 +2689,7 @@ export default function AdminDashboard() {
                   <Stack gap="6">
                     <Flex justifyContent="space-between" alignItems="center">
                       <HStack gap="2">
-                        <Terminal size={20} color="#60A5FA" />
+                        <Terminal size={20} color="#8FBC9A" />
                         <Heading size="xs" color="white" fontWeight="bold">
                           Interactive API Console
                         </Heading>
@@ -2676,11 +2709,11 @@ export default function AdminDashboard() {
                             key={preset.ep}
                             size="xs"
                             onClick={() => setApiEndpoint(preset.ep)}
-                            bg={apiEndpoint === preset.ep ? "#2563EB" : "#1E293B"}
+                            bg={apiEndpoint === preset.ep ? "#1A6B3C" : "#1C3328"}
                             color={apiEndpoint === preset.ep ? "#FFFFFF" : "#E2E8F0"}
                             border="1px solid"
-                            borderColor={apiEndpoint === preset.ep ? "#3B82F6" : "rgba(255, 255, 255, 0.2)"}
-                            _hover={{ bg: apiEndpoint === preset.ep ? "#1D4ED8" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
+                            borderColor={apiEndpoint === preset.ep ? "#2F8F57" : "rgba(255, 255, 255, 0.2)"}
+                            _hover={{ bg: apiEndpoint === preset.ep ? "#145A32" : "rgba(255, 255, 255, 0.15)", color: "#FFFFFF" }}
                             borderRadius="lg"
                             fontWeight={apiEndpoint === preset.ep ? "bold" : "normal"}
                           >
@@ -2690,7 +2723,7 @@ export default function AdminDashboard() {
                       </Flex>
                     </Box>
 
-                    <Card.Root bg="#111827" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p={{ base: "4", sm: "6" }}>
+                    <Card.Root bg="#143024" borderColor="rgba(255, 255, 255, 0.12)" borderWidth="1px" borderRadius="2xl" p={{ base: "4", sm: "6" }}>
                       <Flex flexDir={{ base: "column", sm: "row" }} gap="3" mb="4">
                         <Flex gap="2" w={{ base: "full", sm: "auto" }}>
                           {["GET", "POST", "PUT", "DELETE"].map((m) => (
@@ -2698,7 +2731,7 @@ export default function AdminDashboard() {
                               key={m}
                               size="sm"
                               onClick={() => setApiMethod(m)}
-                              bg={apiMethod === m ? "#7C3AED" : "#1E293B"}
+                              bg={apiMethod === m ? "#7C3AED" : "#1C3328"}
                               color={apiMethod === m ? "#FFFFFF" : "#E2E8F0"}
                               border="1px solid"
                               borderColor={apiMethod === m ? "#8B5CF6" : "rgba(255, 255, 255, 0.2)"}
@@ -2715,7 +2748,7 @@ export default function AdminDashboard() {
                           value={apiEndpoint}
                           onChange={(e) => setApiEndpoint(e.target.value)}
                           placeholder="/api/admin/bookings"
-                          bg="#1E293B"
+                          bg="#1C3328"
                           borderColor="rgba(255, 255, 255, 0.2)"
                           color="#FFFFFF"
                           size="sm"
@@ -2746,7 +2779,7 @@ export default function AdminDashboard() {
                                 Response Payload
                               </Text>
                             </HStack>
-                            <Button size="xs" variant="ghost" color="#93C5FD" onClick={copyResponseJson}>
+                            <Button size="xs" variant="ghost" color="#C7E0D0" onClick={copyResponseJson}>
                               {copiedJson ? <Check size={12} style={{ marginRight: "4px" }} /> : <Copy size={12} style={{ marginRight: "4px" }} />}
                               {copiedJson ? "Copied!" : "Copy JSON"}
                             </Button>
@@ -2784,7 +2817,7 @@ export default function AdminDashboard() {
       {/* 1. Vehicle Catalog Modal */}
       {showVehicleModal && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+          <Box bg="#10261C" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW={{ base: "full", sm: "520px" }}>
             <Heading size="md" color="white" mb="4">
               {editingVehicle ? "Edit Vehicle Model" : "Add New Vehicle Model"}
             </Heading>
@@ -2795,43 +2828,43 @@ export default function AdminDashboard() {
                     <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Category</Text>
                     <HStack gap="1">
                       {["Car", "Bike"].map((cat) => (
-                        <Button
+                        <ChoiceButton
                           key={cat}
                           size="xs"
                           type="button"
+                          tone="purple"
+                          selected={vehicleForm.category === cat}
                           onClick={() => setVehicleForm({ ...vehicleForm, category: cat })}
-                          variant={vehicleForm.category === cat ? "solid" : "outline"}
-                          colorScheme={vehicleForm.category === cat ? "purple" : "gray"}
                           flex="1"
                         >
                           {cat}
-                        </Button>
+                        </ChoiceButton>
                       ))}
                     </HStack>
                   </Box>
 
                   <Box>
                     <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Body Type</Text>
-                    <Input value={vehicleForm.bodyType} onChange={(e) => setVehicleForm({ ...vehicleForm, bodyType: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="Hatchback / SUV / Scooter" />
+                    <Input value={vehicleForm.bodyType} onChange={(e) => setVehicleForm({ ...vehicleForm, bodyType: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="Hatchback / SUV / Scooter" />
                   </Box>
                 </Grid>
 
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Brand</Text>
-                  <Input required value={vehicleForm.brand} onChange={(e) => setVehicleForm({ ...vehicleForm, brand: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="e.g. Maruti Suzuki, Honda, Royal Enfield" />
+                  <Input required value={vehicleForm.brand} onChange={(e) => setVehicleForm({ ...vehicleForm, brand: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="e.g. Maruti Suzuki, Honda, Royal Enfield" />
                 </Box>
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Model Name</Text>
-                  <Input required value={vehicleForm.model} onChange={(e) => setVehicleForm({ ...vehicleForm, model: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="e.g. Swift, Creta, Classic 350" />
+                  <Input required value={vehicleForm.model} onChange={(e) => setVehicleForm({ ...vehicleForm, model: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="e.g. Swift, Creta, Classic 350" />
                 </Box>
 
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Model Picture / Image URL</Text>
-                  <Input value={vehicleForm.modelImage} onChange={(e) => setVehicleForm({ ...vehicleForm, modelImage: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="https://images.unsplash.com/photo-1549399542-7e3f8b79c341" />
+                  <Input value={vehicleForm.modelImage} onChange={(e) => setVehicleForm({ ...vehicleForm, modelImage: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="https://images.unsplash.com/photo-1549399542-7e3f8b79c341" />
                 </Box>
 
                 {vehicleForm.modelImage && (
-                  <Flex alignItems="center" gap="3" p="2.5" bg="#1E293B" borderRadius="xl" border="1px dashed" borderColor="purple.400">
+                  <Flex alignItems="center" gap="3" p="2.5" bg="#1C3328" borderRadius="xl" border="1px dashed" borderColor="purple.400">
                     <img
                       src={vehicleForm.modelImage}
                       alt="Model Preview"
@@ -2857,7 +2890,7 @@ export default function AdminDashboard() {
       {/* 2. Service Modal */}
       {showServiceModal && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="640px" maxH="90vh" overflowY="auto">
+          <Box bg="#10261C" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="640px" maxH="90vh" overflowY="auto">
             <Heading size="md" color="white" mb="4">
               {editingService ? "Edit Service" : "Add New Service"}
             </Heading>
@@ -2865,7 +2898,7 @@ export default function AdminDashboard() {
               <Stack gap="4">
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Service Name</Text>
-                  <Input required value={serviceForm.name} onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="e.g. Foam Washing & Ceramic Coating" />
+                  <Input required value={serviceForm.name} onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="e.g. Foam Washing & Ceramic Coating" />
                 </Box>
                 
                 <Grid templateColumns="repeat(2, 1fr)" gap="3">
@@ -2873,30 +2906,29 @@ export default function AdminDashboard() {
                     <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Vehicle Category</Text>
                     <HStack gap="1">
                       {["4W", "2W"].map((vt) => (
-                        <Button
+                        <ChoiceButton
                           key={vt}
                           size="xs"
                           type="button"
+                          selected={serviceForm.vehicleType === vt}
                           onClick={() => setServiceForm({ ...serviceForm, vehicleType: vt })}
-                          variant={serviceForm.vehicleType === vt ? "solid" : "outline"}
-                          colorScheme={serviceForm.vehicleType === vt ? "blue" : "gray"}
                           flex="1"
                         >
                           {vt === "4W" ? "4W Car" : "2W Bike"}
-                        </Button>
+                        </ChoiceButton>
                       ))}
                     </HStack>
                   </Box>
 
                   <Box>
                     <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Body Type Target</Text>
-                    <Input value={serviceForm.bodyType} onChange={(e) => setServiceForm({ ...serviceForm, bodyType: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="Hatchback / SUV / All" />
+                    <Input value={serviceForm.bodyType} onChange={(e) => setServiceForm({ ...serviceForm, bodyType: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="Hatchback / SUV / All" />
                   </Box>
                 </Grid>
 
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Fallback price (₹)</Text>
-                  <Input type="number" required value={serviceForm.basePrice} onChange={(e) => setServiceForm({ ...serviceForm, basePrice: Number(e.target.value) })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  <Input type="number" required value={serviceForm.basePrice} onChange={(e) => setServiceForm({ ...serviceForm, basePrice: Number(e.target.value) })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" />
                   <Text fontSize="10px" color="gray.400" mt="1">Used only when a body type below is left blank.</Text>
                 </Box>
 
@@ -2913,7 +2945,7 @@ export default function AdminDashboard() {
                             ...serviceForm,
                             prices: { ...serviceForm.prices, [field.key]: e.target.value },
                           })}
-                          bg="#1E293B"
+                          bg="#1C3328"
                           color="#FFFFFF"
                           borderRadius="lg"
                           placeholder="—"
@@ -2925,7 +2957,7 @@ export default function AdminDashboard() {
                 
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Duration (Minutes)</Text>
-                  <Input value={serviceForm.durationMinutes} onChange={(e) => setServiceForm({ ...serviceForm, durationMinutes: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  <Input value={serviceForm.durationMinutes} onChange={(e) => setServiceForm({ ...serviceForm, durationMinutes: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" />
                 </Box>
 
                 <Flex justifyContent="flex-end" gap="3" pt="4">
@@ -2941,7 +2973,7 @@ export default function AdminDashboard() {
       {/* 3. Provider Modal */}
       {showProviderModal && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+          <Box bg="#10261C" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW={{ base: "full", sm: "520px" }}>
             <Heading size="md" color="white" mb="4">
               {editingProvider ? "Edit Provider" : "Register Provider"}
             </Heading>
@@ -2949,11 +2981,11 @@ export default function AdminDashboard() {
               <Stack gap="4">
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Full Name</Text>
-                  <Input required value={providerForm.name} onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  <Input required value={providerForm.name} onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" />
                 </Box>
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Phone</Text>
-                  <Input required value={providerForm.phone} onChange={(e) => setProviderForm({ ...providerForm, phone: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  <Input required value={providerForm.phone} onChange={(e) => setProviderForm({ ...providerForm, phone: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" />
                 </Box>
                 <Flex justifyContent="flex-end" gap="3" pt="4">
                   <Button variant="ghost" color="gray.300" onClick={() => setShowProviderModal(false)}>Cancel</Button>
@@ -2968,7 +3000,7 @@ export default function AdminDashboard() {
       {/* 4. Slot Modal */}
       {showSlotModal && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+          <Box bg="#10261C" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW={{ base: "full", sm: "520px" }}>
             <Heading size="md" color="white" mb="4">
               {editingSlot ? "Edit Time Slot" : "Create Time Slot"}
             </Heading>
@@ -2976,7 +3008,7 @@ export default function AdminDashboard() {
               <Stack gap="4">
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Time Slot Range</Text>
-                  <Input required value={slotForm.slotTime} onChange={(e) => setSlotForm({ ...slotForm, slotTime: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="09:00 AM - 10:00 AM" />
+                  <Input required value={slotForm.slotTime} onChange={(e) => setSlotForm({ ...slotForm, slotTime: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="09:00 AM - 10:00 AM" />
                 </Box>
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Maximum Booking Capacity</Text>
@@ -2987,7 +3019,7 @@ export default function AdminDashboard() {
                     required
                     value={slotForm.maxCapacity}
                     onChange={(e) => setSlotForm({ ...slotForm, maxCapacity: parseInt(e.target.value) || 1 })}
-                    bg="#1E293B"
+                    bg="#1C3328"
                     color="#FFFFFF"
                     borderRadius="lg"
                     placeholder="10"
@@ -3001,7 +3033,7 @@ export default function AdminDashboard() {
                         size="2xs"
                         type="button"
                         onClick={() => setSlotForm({ ...slotForm, maxCapacity: presetCap })}
-                        bg={slotForm.maxCapacity === presetCap ? "#7C3AED" : "#1E293B"}
+                        bg={slotForm.maxCapacity === presetCap ? "#7C3AED" : "#1C3328"}
                         color={slotForm.maxCapacity === presetCap ? "#FFFFFF" : "#CBD5E1"}
                         border="1px solid"
                         borderColor={slotForm.maxCapacity === presetCap ? "#8B5CF6" : "rgba(255, 255, 255, 0.2)"}
@@ -3017,26 +3049,26 @@ export default function AdminDashboard() {
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Slot Status</Text>
                   <HStack gap="2">
-                    <Button
+                    <ChoiceButton
                       size="xs"
                       type="button"
+                      tone="green"
+                      selected={slotForm.isActive}
                       onClick={() => setSlotForm({ ...slotForm, isActive: true })}
-                      variant={slotForm.isActive ? "solid" : "outline"}
-                      colorScheme={slotForm.isActive ? "green" : "gray"}
                       flex="1"
                     >
                       Active / Open
-                    </Button>
-                    <Button
+                    </ChoiceButton>
+                    <ChoiceButton
                       size="xs"
                       type="button"
+                      tone="red"
+                      selected={!slotForm.isActive}
                       onClick={() => setSlotForm({ ...slotForm, isActive: false })}
-                      variant={!slotForm.isActive ? "solid" : "outline"}
-                      colorScheme={!slotForm.isActive ? "red" : "gray"}
                       flex="1"
                     >
                       Closed / Full
-                    </Button>
+                    </ChoiceButton>
                   </HStack>
                 </Box>
                 <Flex justifyContent="flex-end" gap="3" pt="4">
@@ -3052,11 +3084,11 @@ export default function AdminDashboard() {
       {/* 5. Booking Modal */}
       {showBookingModal && editingBooking && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="560px" maxH="90vh" overflowY="auto">
+          <Box bg="#10261C" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="560px" maxH="90vh" overflowY="auto">
             <Heading size="md" color="white" mb="2">
               Booking #{editingBooking.id?.substring(0, 8)}
             </Heading>
-            <Stack gap="2" mt="3" p="3" borderRadius="xl" bg="#172033">
+            <Stack gap="2" mt="3" p="3" borderRadius="xl" bg="#173528">
               {[
                 ["Customer", `${editingBooking.user?.name || "Customer"} · ${phoneLabel(editingBooking.user?.phone || editingBooking.user?.email)}`],
                 ["Vehicle", [editingBooking.vehicleSnapshot?.make, editingBooking.vehicleSnapshot?.model].filter(Boolean).join(" ") || editingBooking.vehicleSnapshot?.type || "—"],
@@ -3081,16 +3113,15 @@ export default function AdminDashboard() {
                 <Text fontSize="xs" color="gray.300" mb="2" fontWeight="bold">Update Status:</Text>
                 <HStack gap="2" flexWrap="wrap">
                   {bookingStatuses.map((st) => (
-                    <Button
+                    <ChoiceButton
                       key={st}
                       size="xs"
+                      selected={bookingStatusForm === st}
                       onClick={() => setBookingStatusForm(st)}
-                      variant={bookingStatusForm === st ? "solid" : "outline"}
-                      colorScheme={bookingStatusForm === st ? "blue" : "gray"}
                       textTransform="capitalize"
                     >
-                      {st}
-                    </Button>
+                      {st.replaceAll("_", " ")}
+                    </ChoiceButton>
                   ))}
                 </HStack>
               </Box>
@@ -3099,17 +3130,17 @@ export default function AdminDashboard() {
                 <Text fontSize="xs" color="gray.300" mb="2" fontWeight="bold">Assign Provider:</Text>
                 <VStack align="stretch" gap="2">
                   {providers.map((p) => (
-                    <Button
+                    <ChoiceButton
                       key={p.id}
                       size="sm"
+                      tone="teal"
+                      selected={bookingProviderForm === p.id}
                       onClick={() => setBookingProviderForm(p.id)}
-                      variant={bookingProviderForm === p.id ? "solid" : "outline"}
-                      colorScheme={bookingProviderForm === p.id ? "teal" : "gray"}
                       justifyContent="space-between"
                     >
-                      <Text fontSize="xs">{p.name}</Text>
-                      <Text fontSize="10px">{p.phone}</Text>
-                    </Button>
+                      <Text fontSize="xs" color="#F8FAFC">{p.name}</Text>
+                      <Text fontSize="10px" color="#E2E8F0">{p.phone}</Text>
+                    </ChoiceButton>
                   ))}
                 </VStack>
               </Box>
@@ -3127,7 +3158,7 @@ export default function AdminDashboard() {
       {/* 7. Coupon Modal */}
       {showCouponModal && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+          <Box bg="#10261C" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW={{ base: "full", sm: "520px" }}>
             <Heading size="md" color="white" mb="4">
               {editingCoupon ? "Edit Coupon Code" : "Create Coupon Code"}
             </Heading>
@@ -3135,20 +3166,20 @@ export default function AdminDashboard() {
               <Stack gap="4">
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Coupon Code (Uppercase)</Text>
-                  <Input required value={couponForm.code} onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="SUMMER50" />
+                  <Input required value={couponForm.code} onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="SUMMER50" />
                 </Box>
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Description</Text>
-                  <Input value={couponForm.description} onChange={(e) => setCouponForm({ ...couponForm, description: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="Flat ₹100 off on detailing" />
+                  <Input value={couponForm.description} onChange={(e) => setCouponForm({ ...couponForm, description: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="Flat ₹100 off on detailing" />
                 </Box>
                 <Grid templateColumns="repeat(2, 1fr)" gap="3">
                   <Box>
                     <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Discount Value</Text>
-                    <Input type="number" required value={couponForm.discountValue} onChange={(e) => setCouponForm({ ...couponForm, discountValue: Number(e.target.value) })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                    <Input type="number" required value={couponForm.discountValue} onChange={(e) => setCouponForm({ ...couponForm, discountValue: Number(e.target.value) })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" />
                   </Box>
                   <Box>
                     <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Min Booking (₹)</Text>
-                    <Input type="number" value={couponForm.minOrderAmount} onChange={(e) => setCouponForm({ ...couponForm, minOrderAmount: Number(e.target.value) })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                    <Input type="number" value={couponForm.minOrderAmount} onChange={(e) => setCouponForm({ ...couponForm, minOrderAmount: Number(e.target.value) })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" />
                   </Box>
                 </Grid>
                 <Flex justifyContent="flex-end" gap="3" pt="4">
@@ -3164,7 +3195,7 @@ export default function AdminDashboard() {
       {/* 8. CarePass Plan Modal */}
       {showPlanModal && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+          <Box bg="#10261C" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW={{ base: "full", sm: "520px" }}>
             <Heading size="md" color="white" mb="4">
               {editingPlan ? "Edit CarePass Plan" : "Create CarePass Plan"}
             </Heading>
@@ -3172,11 +3203,11 @@ export default function AdminDashboard() {
               <Stack gap="4">
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Plan Name</Text>
-                  <Input required value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="Shrawasti CarePass Platinum" />
+                  <Input required value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="Shrawasti CarePass Platinum" />
                 </Box>
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Base Monthly Price (₹)</Text>
-                  <Input type="number" required value={planForm.basePrice} onChange={(e) => setPlanForm({ ...planForm, basePrice: Number(e.target.value) })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  <Input type="number" required value={planForm.basePrice} onChange={(e) => setPlanForm({ ...planForm, basePrice: Number(e.target.value) })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" />
                 </Box>
                 <Flex justifyContent="flex-end" gap="3" pt="4">
                   <Button variant="ghost" color="gray.300" onClick={() => setShowPlanModal(false)}>Cancel</Button>
@@ -3191,7 +3222,7 @@ export default function AdminDashboard() {
       {/* 9. Broadcast Push Modal */}
       {showBroadcastModal && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+          <Box bg="#10261C" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW={{ base: "full", sm: "520px" }}>
             <Heading size="md" color="white" mb="4">
               Compose Broadcast Push Notification
             </Heading>
@@ -3199,11 +3230,11 @@ export default function AdminDashboard() {
               <Stack gap="4">
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Title</Text>
-                  <Input required value={broadcastForm.title} onChange={(e) => setBroadcastForm({ ...broadcastForm, title: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="Weekend Special Offer! 🧼" />
+                  <Input required value={broadcastForm.title} onChange={(e) => setBroadcastForm({ ...broadcastForm, title: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="Weekend Special Offer! 🧼" />
                 </Box>
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Message Body</Text>
-                  <Input required value={broadcastForm.message} onChange={(e) => setBroadcastForm({ ...broadcastForm, message: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" placeholder="Get 20% off on vehicle detailing this weekend!" />
+                  <Input required value={broadcastForm.message} onChange={(e) => setBroadcastForm({ ...broadcastForm, message: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" placeholder="Get 20% off on vehicle detailing this weekend!" />
                 </Box>
                 <Flex justifyContent="flex-end" gap="3" pt="4">
                   <Button variant="ghost" color="gray.300" onClick={() => setShowBroadcastModal(false)}>Cancel</Button>
@@ -3218,7 +3249,7 @@ export default function AdminDashboard() {
       {/* 6. User Modal */}
       {showUserModal && editingUser && (
         <Flex position="fixed" inset="0" bg="blackAlpha.800" backdropFilter="blur(6px)" zIndex="999" alignItems="center" justifyContent="center" p="4">
-          <Box bg="#0F172A" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW="450px">
+          <Box bg="#10261C" borderColor="rgba(255, 255, 255, 0.2)" borderWidth="1px" borderRadius="2xl" p="6" w="full" maxW={{ base: "full", sm: "520px" }}>
             <Heading size="md" color="white" mb="4">
               Edit User Profile
             </Heading>
@@ -3226,11 +3257,11 @@ export default function AdminDashboard() {
               <Stack gap="4">
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">User Name</Text>
-                  <Input required value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  <Input required value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" />
                 </Box>
                 <Box>
                   <Text fontSize="xs" color="gray.300" mb="1" fontWeight="bold">Phone</Text>
-                  <Input value={userForm.phone} onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })} bg="#1E293B" color="#FFFFFF" borderRadius="lg" />
+                  <Input value={userForm.phone} onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })} bg="#1C3328" color="#FFFFFF" borderRadius="lg" />
                 </Box>
                 <Flex justifyContent="flex-end" gap="3" pt="4">
                   <Button variant="ghost" color="gray.300" onClick={() => setShowUserModal(false)}>Cancel</Button>
